@@ -1,0 +1,72 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated/client"
+}
+
+model User {
+  id         String   @id @default(uuid())
+  nome       String
+  login      String   @unique
+  senhaHash  String
+  role       String   @default("CORRETOR")
+  createdAt  DateTime @default(now())
+
+  lotes      Lote[]     @relation("UserReservas")
+  propostas  Proposta[] @relation("UserPropostas")
+  auditLogs  AuditLog[] @relation("UserAuditLogs")
+}
+
+model Lote {
+  id               String    @id
+  n                String
+  q                String
+  area             Float
+  valor            Float
+  status           String
+  reservaVenceEm   DateTime?
+  comprador        String?
+  compradorAnterior String? // Preservado após estorno
+
+  reservaOwnerId   String?
+  reservaOwner     User?      @relation("UserReservas", fields: [reservaOwnerId], references: [id])
+
+  propostas        Proposta[] @relation("LotePropostas")
+  auditLogs        AuditLog[] @relation("LoteAuditLogs")
+}
+
+model Proposta {
+  id               String   @id @default(uuid())
+  loteId           String
+  lote             Lote     @relation("LotePropostas", fields: [loteId], references: [id])
+
+  corretorId       String
+  corretor         User     @relation("UserPropostas", fields: [corretorId], references: [id])
+
+  nomeCliente      String
+  telefoneCliente  String?
+  emailCliente     String?
+
+  payloadFinanceiro String   // JSON serializado (tabela, parcelas, entrada, etc.)
+
+  status           String   @default("Pendente") // Pendente | Aprovada | Recusada | Distratada
+  criadaEm         DateTime @default(now())
+}
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  loteId          String
+  lote            Lote     @relation("LoteAuditLogs", fields: [loteId], references: [id])
+
+  userId          String?
+  user            User?    @relation("UserAuditLogs", fields: [userId], references: [id])
+
+  evento          String   // RESERVA_CRIADA | RESERVA_LIBERADA | PROPOSTA_CRIADA | PROPOSTA_APROVADA | PROPOSTA_RECUSADA | AJUSTE_SOLICITADO | ESTORNO
+  payloadAnterior String?  // JSON snapshot do lote antes
+  payloadNovo     String?  // JSON snapshot do lote depois
+  criadoEm        DateTime @default(now())
+}

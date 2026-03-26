@@ -1,0 +1,357 @@
+import express from "express";
+import cors from "cors";
+import { PrismaClient } from "../prisma/generated/client/index.js";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+import 'dotenv/config';
+
+const app = express();
+const prisma = new PrismaClient();
+
+app.use(cors());
+app.use(express.json());
+
+const JWT_SECRET = process.env.JWT_SECRET || "terravista_super_secret_dev";
+
+// ── MIDDLEWARE AUTH ──
+const requireAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "Token não fornecido" });
+  
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = payload;
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: "Token inválido" });
+  }
+};
+
+// ── ROTAS BASILARES ──
+
+// POST /auth/login
+app.post("/auth/login", async (req, res) => {
+  const { login, senha } = req.body;
+  if (!login || !senha) return res.status(400).json({ error: "Preencha os campos" });
+  
+  const user = await prisma.user.findUnique({ where: { login } });
+  if (!user) return res.status(401).json({ error: "Credenciais inválidas" });
+
+  const isMatch = await bcrypt.compare(senha, user.senhaHash);
+  if (!isMatch) return res.status(401).json({ error: "Credenciais inválidas" });
+
+  const token = jwt.sign(
+    { id: user.id, login: user.login, role: user.role.toLowerCase(), nome: user.nome }, 
+    JWT_SECRET, 
+    { expiresIn: "12h" }
+  );
+  
+  res.json({
+    token,
+    user: { id: user.id, login: user.login, role: user.role.toLowerCase(), nome: user.nome }
+  });
+});
+
+// GET /lotes
+app.get("/lotes", async (req, res) => {
+  try {
+    const lotes = await prisma.lote.findMany();
+    // Opcional: Omitir "comprador" se o requester for corretor,
+    // mas na Fase 1 abriremos para validar o bind do App.jsx primeiro.
+    res.json(lotes);
+  } catch (error) {
+    res.status(500).json({ error: "Erro interno no BD" });
+  }
+});
+
+// POST /lotes/:id/reservar
+app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 1. Busca Lote e Checa o Status
+    const lote = await prisma.lote.findUnique({ where: { id } });
+    if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
+    if (lote.status !== "Disponível") {
+      return res.status(409).json({ error: "Lote ocupado!" });
+    }
+
+    // 2. Trava estrita de 48 Horas do MVP
+    const reservaVenceEm = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    // 3. Mutação Atômica Anti-Concorrência
+    const result = await prisma.lote.updateMany({
+      where: { id: lote.id, status: "Disponível" },
+      data: {
+        status: "Reservado",
+        reservaOwnerId: req.user.id,
+        reservaVenceEm
+      }
+    });
+
+    if (result.count === 0) {
+      return res.status(409).json({ error: "Conflito: Lote fisgado por outro corretor!" });
+    }
+
+    res.json({ message: "Reservado com sucesso", reservaVenceEm });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+// POST /lotes/:id/liberar  (admin only)
+app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Apenas administradores podem liberar reservas" });
+  }
+  try {
+    const { id } = req.params;
+    const lote = await prisma.lote.findUnique({ where: { id } });
+    if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
+    if (lote.status !== "Reservado") {
+      return res.status(409).json({ error: "Lote não está Reservado" });
+    }
+
+    await prisma.lote.update({
+      where: { id },
+      data: { status: "Disponível", reservaOwnerId: null, reservaVenceEm: null },
+    });
+
+    res.json({ message: `Reserva do Lote ${id} liberada com sucesso` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+// POST /lotes/:id/estornar  (admin only)
+app.post("/lotes/:id/estornar", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") {
+    return res.status(403).json({ error: "Apenas administradores podem estornar vendas" });
+  }
+  try {
+    const { id } = req.params;
+    const lote = await prisma.lote.findUnique({ where: { id } });
+    if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
+    if (lote.status !== "Vendido") {
+      return res.status(409).json({ error: `Estorno só é aplicável a lotes Vendidos (atual: "${lote.status}")` });
+    }
+
+    // Busca a proposta Aprovada mais recente ligada a este lote
+    const propostaAprovada = await prisma.proposta.findFirst({
+      where: { loteId: id, status: "Aprovada" },
+      orderBy: { criadaEm: "desc" },
+    });
+
+    const snapshotAnterior = JSON.stringify({
+      status: lote.status,
+      comprador: lote.comprador,
+    });
+    const snapshotNovo = JSON.stringify({
+      status: "Disponível",
+      comprador: null,
+      compradorAnterior: lote.comprador,
+    });
+
+    // Transação atômica: distrato proposta + restaura lote + cria audit_log
+    await prisma.$transaction([
+      // 1. Marca proposta como Distratada (não apaga)
+      ...(propostaAprovada ? [prisma.proposta.update({
+        where: { id: propostaAprovada.id },
+        data: { status: "Distratada" },
+      })] : []),
+      // 2. Restaura lote — preserva compradorAnterior como histórico
+      prisma.lote.update({
+        where: { id },
+        data: {
+          status: "Disponível",
+          comprador: null,
+          compradorAnterior: lote.comprador,
+          reservaOwnerId: null,
+          reservaVenceEm: null,
+        },
+      }),
+      // 3. Registra evento no AuditLog
+      prisma.auditLog.create({
+        data: {
+          loteId: id,
+          userId: req.user.id,
+          evento: "ESTORNO",
+          payloadAnterior: snapshotAnterior,
+          payloadNovo: snapshotNovo,
+        },
+      }),
+    ]);
+
+    res.json({
+      message: `Venda do Lote ${id} estornada. Lote liberado para disponível.`,
+      compradorAnterior: lote.comprador,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+// ── GESTÃO DE PROPOSTAS (Admin) ──
+
+// POST /propostas/:id/aprovar
+app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
+  try {
+    const proposta = await prisma.proposta.findUnique({ where: { id: req.params.id } });
+    if (!proposta) return res.status(404).json({ error: "Proposta não encontrada" });
+    if (!["Pendente", "AjusteSolicitado"].includes(proposta.status)) {
+      return res.status(409).json({ error: `Proposta com status "${proposta.status}" não pode ser aprovada` });
+    }
+
+    const [propostaAtualizada] = await prisma.$transaction([
+      prisma.proposta.update({
+        where: { id: proposta.id },
+        data: { status: "Aprovada" },
+      }),
+      prisma.lote.update({
+        where: { id: proposta.loteId },
+        data: {
+          status: "Vendido",
+          comprador: proposta.nomeCliente,
+          reservaOwnerId: null,
+          reservaVenceEm: null,
+        },
+      }),
+    ]);
+
+    res.json({ proposta: propostaAtualizada });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+// POST /propostas/:id/recusar
+app.post("/propostas/:id/recusar", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
+  try {
+    const proposta = await prisma.proposta.findUnique({ where: { id: req.params.id } });
+    if (!proposta) return res.status(404).json({ error: "Proposta não encontrada" });
+    if (!["Pendente", "AjusteSolicitado"].includes(proposta.status)) {
+      return res.status(409).json({ error: `Proposta com status "${proposta.status}" não pode ser recusada` });
+    }
+
+    const [propostaAtualizada] = await prisma.$transaction([
+      prisma.proposta.update({
+        where: { id: proposta.id },
+        data: { status: "Recusada" },
+      }),
+      prisma.lote.update({
+        where: { id: proposta.loteId },
+        data: {
+          status: "Disponível",
+          reservaOwnerId: null,
+          reservaVenceEm: null,
+        },
+      }),
+    ]);
+
+    res.json({ proposta: propostaAtualizada });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+// POST /propostas/:id/ajuste  (só em Pendente)
+app.post("/propostas/:id/ajuste", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
+  try {
+    const proposta = await prisma.proposta.findUnique({ where: { id: req.params.id } });
+    if (!proposta) return res.status(404).json({ error: "Proposta não encontrada" });
+    if (proposta.status !== "Pendente") {
+      return res.status(409).json({ error: `Ajuste só pode ser solicitado em propostas Pendentes (atual: "${proposta.status}")` });
+    }
+
+    // Lote permanece Reservado — prazo original mantido, sem update no lote
+    const propostaAtualizada = await prisma.proposta.update({
+      where: { id: proposta.id },
+      data: { status: "AjusteSolicitado" },
+    });
+
+    res.json({ proposta: propostaAtualizada });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+// POST /propostas
+app.post("/propostas", requireAuth, async (req, res) => {
+  try {
+    const { loteId, nomeCliente, telefoneCliente, emailCliente, payloadFinanceiro } = req.body;
+
+    if (!loteId || !nomeCliente || !payloadFinanceiro) {
+      return res.status(400).json({ error: "Campos obrigatórios: loteId, nomeCliente, payloadFinanceiro" });
+    }
+
+    // 1. Busca o lote e valida status + ownership da reserva
+    const lote = await prisma.lote.findUnique({ where: { id: loteId } });
+    if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
+
+    if (lote.status !== "Reservado") {
+      return res.status(409).json({ error: "Proposta só pode ser criada para lote Reservado" });
+    }
+
+    if (lote.reservaOwnerId !== req.user.id) {
+      return res.status(403).json({ error: "Este lote está reservado por outro corretor" });
+    }
+
+    // 2. Serializa payloadFinanceiro se vier como objeto
+    const payloadStr = typeof payloadFinanceiro === "string"
+      ? payloadFinanceiro
+      : JSON.stringify(payloadFinanceiro);
+
+    // 3. Cria a proposta
+    const proposta = await prisma.proposta.create({
+      data: {
+        loteId,
+        corretorId: req.user.id,
+        nomeCliente,
+        telefoneCliente: telefoneCliente || null,
+        emailCliente: emailCliente || null,
+        payloadFinanceiro: payloadStr,
+        status: "Pendente",
+      }
+    });
+
+    res.status(201).json({
+      ...proposta,
+      payloadFinanceiro: JSON.parse(proposta.payloadFinanceiro),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+// GET /propostas  (admin: todas | corretor: só as suas)
+app.get("/propostas", requireAuth, async (req, res) => {
+  try {
+    const where = req.user.role === "admin" ? {} : { corretorId: req.user.id };
+    const propostas = await prisma.proposta.findMany({
+      where,
+      orderBy: { criadaEm: "desc" },
+    });
+    res.json(propostas.map(p => ({
+      ...p,
+      payloadFinanceiro: JSON.parse(p.payloadFinanceiro),
+    })));
+  } catch (error) {
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`🚀 Terra Vista API rodando na porta ${PORT}`);
+});
