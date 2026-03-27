@@ -1,6 +1,11 @@
 node_modules/
 dist/
 .env
-.env.local
-.DS_Store
-*.log
+.env.*
+backend/.env
+backend/.env.*
+backend/prisma/dev.db
+backend/dev.db
+*.db
+backend/prisma/generated/
+backend/prisma/prisma/

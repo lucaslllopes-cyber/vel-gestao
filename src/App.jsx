@@ -32,7 +32,7 @@ export default function App() {
 
   const fetchLotes = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:3001/lotes");
+      const res = await fetch("https://api.velgestao.com/lotes");
       const data = await res.json();
       setLots(data);
       LS.s(STORAGE_KEYS.LOTS, data);
@@ -146,7 +146,7 @@ export default function App() {
     };
 
     try {
-      const res = await fetch("http://localhost:3001/propostas", {
+      const res = await fetch("https://api.velgestao.com/propostas", {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${user.token}`,
@@ -193,7 +193,7 @@ export default function App() {
 
   const callProposta = async (propostaId, acao, toastOk, toastErr) => {
     try {
-      const res = await fetch(`http://localhost:3001/propostas/${propostaId}/${acao}`, {
+      const res = await fetch(`https://api.velgestao.com/propostas/${propostaId}/${acao}`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${user.token}`, "Content-Type": "application/json" },
       });
@@ -241,7 +241,7 @@ export default function App() {
     onReservar: async (upd) => {
       toast$("Iniciando reserva no banco de dados...");
       try {
-        const res = await fetch(`http://localhost:3001/lotes/${upd.id}/reservar`, {
+        const res = await fetch(`https://api.velgestao.com/lotes/${upd.id}/reservar`, {
           method: "POST",
           headers: { 
             "Authorization": `Bearer ${user.token}`,
@@ -266,7 +266,7 @@ export default function App() {
     onLiberar:  async (upd) => {
       toast$("Liberando reserva...");
       try {
-        const res = await fetch(`http://localhost:3001/lotes/${upd.id}/liberar`, {
+        const res = await fetch(`https://api.velgestao.com/lotes/${upd.id}/liberar`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${user.token}`, "Content-Type": "application/json" },
         });
@@ -286,7 +286,7 @@ export default function App() {
     onEstornar: async (lot) => {
       toast$("Processando estorno...");
       try {
-        const res = await fetch(`http://localhost:3001/lotes/${lot.id}/estornar`, {
+        const res = await fetch(`https://api.velgestao.com/lotes/${lot.id}/estornar`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${user.token}`, "Content-Type": "application/json" },
         });

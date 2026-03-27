@@ -13,7 +13,7 @@ export function LoginPage({ onLogin }) {
   const doLogin = async () => {
     setErr(""); setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/auth/login", {
+      const res = await fetch("https://api.velgestao.com/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ login: lf.u.trim().toLowerCase(), senha: lf.p }),
