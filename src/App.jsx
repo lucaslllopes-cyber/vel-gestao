@@ -23,6 +23,7 @@ import { PropostasPage }  from "./pages/PropostasPage";
 import { AlertasPage }    from "./pages/AlertasPage";
 import { ConfigPage }     from "./pages/ConfigPage";
 import { EspelhoPage }    from "./pages/EspelhoPage";
+import { UsuariosPage }   from "./pages/UsuariosPage";
 
 // ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -314,6 +315,7 @@ export default function App() {
     { k: "props",       l: `📋 Propostas${pendente > 0 ? ` (${pendente})` : ""}` },
     { k: "alertas",     l: `🔔 Alertas${unread > 0 ? ` (${unread})` : ""}`, show: isAdmin },
     { k: "espelho",     l: "🗺️ Espelho", show: isAdmin },
+    { k: "usuarios",    l: "👥 Usuários", show: isAdmin },
     { k: "cfg",         l: "⚙️ Config",  show: isAdmin },
   ].filter(t => t.show !== false);
 
@@ -530,6 +532,9 @@ export default function App() {
 
         {/* Config */}
         {tab === "cfg" && isAdmin && <ConfigPage cfg={cfg} setCfg={setCfg} />}
+
+        {/* Usuários */}
+        {tab === "usuarios" && isAdmin && <UsuariosPage user={user} />}
 
         {/* Painel Lateral — compartilhado com Vista Geral e Lista */}
         {(tab === "vista-geral" || tab === "lista") && sel && (

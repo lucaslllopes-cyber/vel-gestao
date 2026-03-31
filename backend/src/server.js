@@ -351,6 +351,53 @@ app.get("/propostas", requireAuth, async (req, res) => {
   }
 });
 
+// ── GESTÃO DE USUÁRIOS (Admin) ──
+
+// GET /users
+app.get("/users", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, nome: true, login: true, role: true, createdAt: true },
+      orderBy: { nome: "asc" }
+    });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao listar usuários" });
+  }
+});
+
+// POST /users
+app.post("/users", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  try {
+    const { nome, login, senha, role } = req.body;
+    if (!nome || !login || !senha || !role) {
+      return res.status(400).json({ error: "Preencha todos os campos" });
+    }
+    
+    const exists = await prisma.user.findUnique({ where: { login } });
+    if (exists) return res.status(400).json({ error: "Este login já está em uso" });
+
+    const senhaHash = await bcrypt.hash(senha, 10);
+    const userRole = role.toLowerCase(); // Normaliza para admin ou corretor
+
+    const newUser = await prisma.user.create({
+      data: { nome, login, senhaHash, role: userRole }
+    });
+
+    res.status(201).json({ 
+      id: newUser.id, 
+      nome: newUser.nome, 
+      login: newUser.login, 
+      role: newUser.role 
+    });
+  } catch (error) {
+    console.error("Erro ao criar usuário:", error);
+    res.status(500).json({ error: "Erro interno ao criar usuário" });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`🚀 Terra Vista API rodando na porta ${PORT}`);
