@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Field } from "../components/Field";
 import { USERS } from "../data/constants";
+import { BASE_URL } from "../utils/api";
 
 export function LoginPage({ onLogin }) {
   const [lf, setLF] = useState({ u: "", p: "" });
@@ -13,7 +14,7 @@ export function LoginPage({ onLogin }) {
   const doLogin = async () => {
     setErr(""); setLoading(true);
     try {
-      const res = await fetch("https://api.velgestao.com/auth/login", {
+      const res = await fetch(`${BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ login: lf.u.trim().toLowerCase(), senha: lf.p }),
@@ -71,7 +72,7 @@ export function LoginPage({ onLogin }) {
           label="Usuário"
           value={lf.u}
           onChange={v => setLF(f => ({ ...f, u: v }))}
-          placeholder="admin ou corretor1"
+          placeholder="Usuário"
         />
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4,
@@ -103,10 +104,21 @@ export function LoginPage({ onLogin }) {
           {loading ? "Entrando..." : "Entrar"}
         </button>
 
-        <div style={{ marginTop: 16, padding: 11, background: "#141e2e",
-          borderRadius: 8, fontSize: 11, color: "#475569" }}>
-          <b style={{ color: "#64748b" }}>Demo: </b>
-          admin / terravista2025 &nbsp;·&nbsp; corretor1 / corretor123
+        <div style={{ marginTop: 20, textAlign: "center" }}>
+          <a
+            href="https://wa.me/5535988133347?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20acesso%20ao%20sistema%20de%20vendas%20do%20Terra%20Vista."
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontSize: 12, color: "#475569",
+              textDecoration: "none", borderBottom: "1px solid #334155",
+              paddingBottom: 1, transition: "color 0.2s",
+            }}
+            onMouseEnter={e => e.target.style.color = "#94a3b8"}
+            onMouseLeave={e => e.target.style.color = "#475569"}
+          >
+            Solicitar acesso
+          </a>
         </div>
       </div>
     </div>
