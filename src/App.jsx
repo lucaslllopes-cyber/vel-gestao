@@ -314,7 +314,7 @@ export default function App() {
     { k: "lista",       l: "☰ Lista" },
     { k: "props",       l: `📋 Propostas${pendente > 0 ? ` (${pendente})` : ""}` },
     { k: "alertas",     l: `🔔 Alertas${unread > 0 ? ` (${unread})` : ""}`, show: isAdmin },
-    { k: "espelho",     l: "🗺️ Espelho", show: isAdmin },
+    { k: "espelho",     l: "🗺️ Espelho" },
     { k: "usuarios",    l: "👥 Usuários", show: isAdmin },
     { k: "cfg",         l: "⚙️ Config",  show: isAdmin },
   ].filter(t => t.show !== false);
@@ -350,8 +350,8 @@ export default function App() {
             .app-main-layout { flex-direction: column !important; }
             .desktop-nav { display: none !important; }
             .mobile-nav-btn { display: flex !important; }
-            .painel-lateral { width: 100% !important; border-left: none !important; border-top: 1px solid #1e293b !important; flex: none !important; max-height: 60vh !important; padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; overflow-y: auto !important; }
-            .painel-flutuante { position: absolute !important; bottom: 0 !important; top: auto !important; right: 0 !important; left: 0 !important; width: 100% !important; max-height: 60vh !important; padding: 15px !important; padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; border-radius: 18px 18px 0 0 !important; border: none !important; border-top: 1px solid #1e293b !important; box-shadow: 0 -10px 40px rgba(0,0,0,0.8) !important; overflow-y: auto !important; }
+            .painel-lateral { position: absolute !important; bottom: 0 !important; top: auto !important; right: 0 !important; left: 0 !important; width: 100% !important; z-index: 100 !important; max-height: 70vh !important; padding: 15px !important; padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; border-radius: 18px 18px 0 0 !important; border: none !important; border-top: 1px solid #1e293b !important; box-shadow: 0 -10px 40px rgba(0,0,0,0.8) !important; overflow-y: auto !important; }
+            .painel-flutuante { position: absolute !important; bottom: 0 !important; top: auto !important; right: 0 !important; left: 0 !important; width: 100% !important; z-index: 100 !important; max-height: 70vh !important; padding: 15px !important; padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; border-radius: 18px 18px 0 0 !important; border: none !important; border-top: 1px solid #1e293b !important; box-shadow: 0 -10px 40px rgba(0,0,0,0.8) !important; overflow-y: auto !important; }
             .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
             .kpi-grid > div:last-child { grid-column: span 2 !important; }
             .is-espelho-tab .kpi-grid { display: none !important; }
@@ -494,7 +494,7 @@ export default function App() {
       )}
 
       {/* ── CONTEÚDO PRINCIPAL ── */}
-      <div className="app-main-layout" style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0 }}>
+      <div className="app-main-layout" style={{ display: "flex", flex: 1, overflow: "hidden", minHeight: 0, position: "relative" }}>
 
         {/* Vista Geral */}
         {tab === "vista-geral" && (
@@ -526,7 +526,7 @@ export default function App() {
         )}
 
         {/* Espelho (PoC) */}
-        {tab === "espelho" && isAdmin && (
+        {tab === "espelho" && (
           <EspelhoPage lots={lots} filt={filt} sel={sel} setSel={setSel} />
         )}
 
