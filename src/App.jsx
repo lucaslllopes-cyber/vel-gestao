@@ -342,7 +342,7 @@ export default function App() {
   return (
     <div className={tab === "espelho" ? "is-espelho-tab" : ""} style={{
       fontFamily: "'DM Sans','Segoe UI',sans-serif",
-      background: "#060a0e", height: "100vh", overflow: "hidden",
+      background: "#060a0e", height: "100svh", overflow: "hidden",
       color: "#e2e8f0", display: "flex", flexDirection: "column",
     }}>
       <style>
