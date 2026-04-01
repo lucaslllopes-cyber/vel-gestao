@@ -24,6 +24,7 @@ import { AlertasPage }    from "./pages/AlertasPage";
 import { ConfigPage }     from "./pages/ConfigPage";
 import { EspelhoPage }    from "./pages/EspelhoPage";
 import { UsuariosPage }   from "./pages/UsuariosPage";
+import { ImportacaoPage } from "./pages/ImportacaoPage";
 
 // ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -316,6 +317,7 @@ export default function App() {
     { k: "alertas",     l: `🔔 Alertas${unread > 0 ? ` (${unread})` : ""}`, show: isAdmin },
     { k: "espelho",     l: "🗺️ Espelho" },
     { k: "usuarios",    l: "👥 Usuários", show: isAdmin },
+    { k: "import",      l: "📊 Importação", show: isAdmin },
     { k: "cfg",         l: "⚙️ Config",  show: isAdmin },
   ].filter(t => t.show !== false);
 
@@ -535,6 +537,9 @@ export default function App() {
 
         {/* Usuários */}
         {tab === "usuarios" && isAdmin && <UsuariosPage user={user} />}
+
+        {/* Importação */}
+        {tab === "import" && isAdmin && <ImportacaoPage user={user} onRefreshLotes={fetchLotes} />}
 
         {/* Painel Lateral — compartilhado com Vista Geral e Lista */}
         {(tab === "vista-geral" || tab === "lista") && sel && (

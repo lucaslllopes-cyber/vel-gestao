@@ -27,7 +27,9 @@ model Lote {
   q                String
   area             Float
   valor            Float
+  valorAvista      Float?
   status           String
+  situacaoLegal    String?
   reservaVenceEm   DateTime?
   comprador        String?
   compradorAnterior String? // Preservado após estorno

@@ -4,9 +4,12 @@ import { PrismaClient } from "../prisma/generated/client/index.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import 'dotenv/config';
+import * as XLSX from 'xlsx';
+import multer from 'multer';
 
 const app = express();
 const prisma = new PrismaClient();
+const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(cors());
 app.use(express.json());
@@ -395,6 +398,149 @@ app.post("/users", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Erro ao criar usuário:", error);
     res.status(500).json({ error: "Erro interno ao criar usuário" });
+  }
+});
+
+// ── IMPORTAÇÃO DE PLANILHA (Admin) ──
+
+// POST /admin/lotes/import/preview
+app.post("/admin/lotes/import/preview", requireAuth, upload.single('file'), async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  
+  try {
+    if (!req.file) return res.status(400).json({ error: "Arquivo não fornecido" });
+
+    const buffer = req.file.buffer;
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    
+    // Procura aba específica ou usa a primeira
+    let sheetName = workbook.SheetNames.find(n => n.toUpperCase() === "IMPORTAR_SITE");
+    if (!sheetName) sheetName = workbook.SheetNames[0];
+    
+    const sheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    if (data.length === 0) return res.status(400).json({ error: "Planilha vazia ou aba incorreta" });
+
+    const lotesNoBanco = await prisma.lote.findMany();
+    const mapBanco = new Map(lotesNoBanco.map(l => [`${l.q}-${l.n}`.toUpperCase(), l]));
+
+    const diffs = [];
+    
+    for (const row of data) {
+      // Normalização de chaves para evitar problemas com espaços ou case
+      const normRow = {};
+      Object.keys(row).forEach(k => {
+        const normKey = k.trim().toUpperCase().replace(/[\s_]/g, '');
+        normRow[normKey] = row[k];
+      });
+
+      const q = String(normRow.QUADRA || "").trim().toUpperCase();
+      const n = String(normRow.LOTE || "").trim().toUpperCase();
+      
+      if (!q || !n) continue;
+
+      const id = `${q}-${n}`;
+      const lote = mapBanco.get(id);
+
+      if (!lote) {
+        diffs.push({ id, status: "Não encontrado", row });
+        continue;
+      }
+
+      const valorNovo = parseFloat(normRow.VALORLOTE) || 0;
+      const areaNova = parseFloat(normRow.AREAM2) || 0;
+      const statusNovo = String(normRow.STATUS || "").trim();
+      const situacaoLegalNova = String(normRow.SITUACAOLEGAL || "").trim();
+      const valorAvistaNovo = normRow.VALORAVISTA ? parseFloat(normRow.VALORAVISTA) : null;
+
+      const mudancas = {};
+      if (Math.abs(lote.valor - valorNovo) > 0.01) mudancas.valor = { old: lote.valor, new: valorNovo };
+      if (Math.abs(lote.area - areaNova) > 0.01) mudancas.area = { old: lote.area, new: areaNova };
+      if (lote.status !== statusNovo) {
+        mudancas.status = { old: lote.status, new: statusNovo };
+        // Flag de mudança sensível
+        if ((lote.status === "Vendido" || lote.status === "Reservado") && statusNovo === "Disponível") {
+          mudancas.sensivel = true;
+        }
+      }
+      if (lote.situacaoLegal !== situacaoLegalNova) mudancas.situacaoLegal = { old: lote.situacaoLegal, new: situacaoLegalNova };
+      if (valorAvistaNovo !== null && Math.abs((lote.valorAvista || 0) - valorAvistaNovo) > 0.01) {
+        mudancas.valorAvista = { old: lote.valorAvista, new: valorAvistaNovo };
+      }
+
+      if (Object.keys(mudancas).length > 0) {
+        diffs.push({
+          id,
+          q,
+          n,
+          loteOriginal: lote,
+          mudancas,
+          valoresNovos: {
+            valor: valorNovo,
+            area: areaNova,
+            status: statusNovo,
+            situacaoLegal: situacaoLegalNova,
+            valorAvista: valorAvistaNovo
+          }
+        });
+      }
+    }
+
+    res.json({ diffs });
+  } catch (error) {
+    console.error("Erro no preview:", error);
+    res.status(500).json({ error: "Erro ao processar planilha" });
+  }
+});
+
+// POST /admin/lotes/import/confirm
+app.post("/admin/lotes/import/confirm", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  
+  const { updates } = req.body; // Array de { id, valoresNovos }
+  if (!updates || !Array.isArray(updates)) return res.status(400).json({ error: "Dados invlidos" });
+
+  try {
+    const results = await prisma.$transaction(
+      updates.map(u => prisma.lote.update({
+        where: { id: u.id },
+        data: {
+          valor: u.valoresNovos.valor,
+          area: u.valoresNovos.area,
+          status: u.valoresNovos.status,
+          situacaoLegal: u.valoresNovos.situacaoLegal,
+          valorAvista: u.valoresNovos.valorAvista !== null ? u.valoresNovos.valorAvista : undefined
+        }
+      }))
+    );
+
+    // Registro no AuditLog resiliente fora da transação
+    // Usamos o primeiro lote da lista como referência de "âncora" para o log global de importação
+    try {
+      if (updates.length > 0) {
+        await prisma.auditLog.create({
+          data: {
+            loteId: updates[0].id, 
+            userId: req.user.id,
+            evento: "IMPORTACAO_PLANILHA",
+            payloadNovo: JSON.stringify({ 
+              total: updates.length, 
+              ids: updates.slice(0, 10).map(u => u.id), // Loga apenas os primeiros 10 IDs para evitar payload gigante
+              info: "Importação em massa via planilha" 
+            })
+          }
+        });
+      }
+    } catch (logError) {
+      console.warn("⚠️ Falha ao registrar AuditLog da importação:", logError.message);
+      // Não lançamos o erro para não travar a resposta de sucesso ao usuário
+    }
+
+    res.json({ message: `${results.length} lotes atualizados com sucesso` });
+  } catch (error) {
+    console.error("Erro na confirmação:", error);
+    res.status(500).json({ error: "Erro ao aplicar atualizações" });
   }
 });
 
