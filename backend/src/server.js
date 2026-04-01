@@ -44,6 +44,13 @@ app.post("/auth/login", async (req, res) => {
   const isMatch = await bcrypt.compare(senha, user.senhaHash);
   if (!isMatch) return res.status(401).json({ error: "Credenciais inválidas" });
 
+  if (user.status === "PENDENTE") {
+    return res.status(401).json({ error: "Seu acesso está pendente de aprovação pelo administrador." });
+  }
+  if (user.status === "INATIVO" || user.status === "RECUSADO") {
+    return res.status(401).json({ error: "Seu acesso está desativado. Entre em contato com a gestão." });
+  }
+
   const token = jwt.sign(
     { id: user.id, login: user.login, role: user.role.toLowerCase(), nome: user.nome }, 
     JWT_SECRET, 
@@ -54,6 +61,41 @@ app.post("/auth/login", async (req, res) => {
     token,
     user: { id: user.id, login: user.login, role: user.role.toLowerCase(), nome: user.nome }
   });
+});
+
+// POST /auth/solicitar-acesso
+app.post("/auth/solicitar-acesso", async (req, res) => {
+  try {
+    const { nome, login, senha, telefone, imobiliaria } = req.body;
+    if (!nome || !login || !senha) return res.status(400).json({ error: "Preencha nome, e-mail e senha" });
+
+    const loginNorm = login.trim().toLowerCase();
+    const exists = await prisma.user.findUnique({ where: { login: loginNorm } });
+    
+    if (exists) {
+      if (exists.status === "ATIVO") return res.status(400).json({ error: "Este e-mail já possui acesso ativo." });
+      if (exists.status === "PENDENTE") return res.status(400).json({ error: "Já existe uma solicitação em análise para este e-mail." });
+      return res.status(400).json({ error: "Acesso não liberado para este e-mail. Contate a gestão." });
+    }
+
+    const senhaHash = await bcrypt.hash(senha, 10);
+    const newUser = await prisma.user.create({
+      data: {
+        nome,
+        login: loginNorm,
+        senhaHash,
+        role: "corretor",
+        status: "PENDENTE",
+        telefone,
+        imobiliaria
+      }
+    });
+
+    res.status(201).json({ message: "Solicitação recebida com sucesso", id: newUser.id });
+  } catch (error) {
+    console.error("Erro ao solicitar acesso:", error);
+    res.status(500).json({ error: "Erro interno no servidor" });
+  }
 });
 
 // GET /lotes
@@ -361,7 +403,7 @@ app.get("/users", requireAuth, async (req, res) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, nome: true, login: true, role: true, createdAt: true },
+      select: { id: true, nome: true, login: true, role: true, status: true, telefone: true, imobiliaria: true, createdAt: true },
       orderBy: { nome: "asc" }
     });
     res.json(users);
@@ -374,9 +416,9 @@ app.get("/users", requireAuth, async (req, res) => {
 app.post("/users", requireAuth, async (req, res) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
   try {
-    const { nome, login, senha, role } = req.body;
+    const { nome, login, senha, role, status, telefone, imobiliaria } = req.body;
     if (!nome || !login || !senha || !role) {
-      return res.status(400).json({ error: "Preencha todos os campos" });
+      return res.status(400).json({ error: "Preencha todos os campos obrigatórios" });
     }
     
     const exists = await prisma.user.findUnique({ where: { login } });
@@ -386,18 +428,49 @@ app.post("/users", requireAuth, async (req, res) => {
     const userRole = role.toLowerCase(); // Normaliza para admin ou corretor
 
     const newUser = await prisma.user.create({
-      data: { nome, login, senhaHash, role: userRole }
+      data: { 
+        nome, 
+        login, 
+        senhaHash, 
+        role: userRole,
+        status: status || "ATIVO",
+        telefone,
+        imobiliaria
+      }
     });
 
     res.status(201).json({ 
       id: newUser.id, 
       nome: newUser.nome, 
       login: newUser.login, 
-      role: newUser.role 
+      role: newUser.role,
+      status: newUser.status
     });
   } catch (error) {
     console.error("Erro ao criar usuário:", error);
     res.status(500).json({ error: "Erro interno ao criar usuário" });
+  }
+});
+
+// PATCH /users/:id/status
+app.patch("/users/:id/status", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  try {
+    const { status } = req.body;
+    if (!status || !["ATIVO", "PENDENTE", "INATIVO", "RECUSADO"].includes(status)) {
+      return res.status(400).json({ error: "Status inválido" });
+    }
+
+    const { id } = req.params;
+    const user = await prisma.user.update({
+      where: { id },
+      data: { status }
+    });
+
+    res.json({ message: "Status atualizado com sucesso", user: { id: user.id, status: user.status } });
+  } catch (error) {
+    console.error("Erro ao atualizar status:", error);
+    res.status(500).json({ error: "Erro interno ao atualizar status" });
   }
 });
 

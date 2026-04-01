@@ -8,8 +8,11 @@ import { BASE_URL } from "../utils/api";
 
 export function LoginPage({ onLogin }) {
   const [lf, setLF] = useState({ u: "", p: "" });
+  const [rf, setRF] = useState({ nome: "", email: "", telefone: "", imobiliaria: "", senha: "" });
   const [err, setErr] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
 
   const doLogin = async () => {
     setErr(""); setLoading(true);
@@ -30,8 +33,36 @@ export function LoginPage({ onLogin }) {
     }
   };
 
-  return (
-    <div style={{
+  const doRequestAccess = async () => {
+    setErr("");
+    setSuccess("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${BASE_URL}/auth/solicitar-acesso`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: rf.nome,
+          login: rf.email,
+          senha: rf.senha,
+          telefone: rf.telefone,
+          imobiliaria: rf.imobiliaria
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error || "Erro ao solicitar acesso."); return; }
+      
+      setSuccess("Solicitação enviada! Aguarde a aprovação da gestão.");
+      setIsRequesting(false);
+      setRF({ nome: "", email: "", telefone: "", imobiliaria: "", senha: "" });
+    } catch (e) {
+      setErr("Sem conexão com o servidor. Verifique se o backend está rodando.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (    <div style={{
       minHeight: "100vh", background: "#060a0e",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontFamily: "'DM Sans','Segoe UI',sans-serif",
@@ -68,6 +99,18 @@ export function LoginPage({ onLogin }) {
           </div>
         )}
 
+        {success && (
+          <div style={{
+            background: "#14532d22", border: "1px solid #14532d",
+            borderRadius: 8, padding: "9px 13px", color: "#4ade80",
+            fontSize: 13, marginBottom: 13, textAlign: "center"
+          }}>
+            {success}
+          </div>
+        )}
+
+        {!isRequesting ? (
+          <>
         <Field
           label="Usuário"
           value={lf.u}
@@ -105,21 +148,61 @@ export function LoginPage({ onLogin }) {
         </button>
 
         <div style={{ marginTop: 20, textAlign: "center" }}>
-          <a
-            href="https://wa.me/5535988133347?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20acesso%20ao%20sistema%20de%20vendas%20do%20Terra%20Vista."
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            onClick={() => { setIsRequesting(true); setErr(""); setSuccess(""); }}
             style={{
-              fontSize: 12, color: "#475569",
-              textDecoration: "none", borderBottom: "1px solid #334155",
-              paddingBottom: 1, transition: "color 0.2s",
+              background: "none", border: "none", fontSize: 12, color: "#475569",
+              textDecoration: "underline", padding: 0, cursor: "pointer",
             }}
-            onMouseEnter={e => e.target.style.color = "#94a3b8"}
-            onMouseLeave={e => e.target.style.color = "#475569"}
           >
             Solicitar acesso
-          </a>
+          </button>
         </div>
+        </>
+        ) : (
+          <>
+            <Field label="Nome Completo" value={rf.nome} onChange={v => setRF(f => ({...f, nome: v}))} placeholder="Nome" />
+            <Field label="E-mail (Login)" value={rf.email} onChange={v => setRF(f => ({...f, email: v}))} placeholder="E-mail" />
+            <Field label="Telefone / WhatsApp" value={rf.telefone} onChange={v => setRF(f => ({...f, telefone: v}))} placeholder="(00) 00000-0000" />
+            <Field label="Imobiliária" value={rf.imobiliaria} onChange={v => setRF(f => ({...f, imobiliaria: v}))} placeholder="Imobiliária (Opcional)" />
+            
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+                Crie sua Senha
+              </div>
+              <input
+                type="password"
+                value={rf.senha}
+                onChange={e => setRF(f => ({...f, senha: e.target.value}))}
+                style={{
+                  width: "100%", background: "#141e2e", border: "1px solid #1e3a5f",
+                  borderRadius: 7, padding: "9px 11px", color: "#e2e8f0", fontSize: 13, outline: "none", boxSizing: "border-box"
+                }}
+              />
+            </div>
+
+            <button
+              onClick={doRequestAccess}
+              disabled={loading}
+              style={{
+                width: "100%", background: loading ? "#3b82f688" : "linear-gradient(135deg,#3b82f6,#2563eb)",
+                border: "none", color: "#fff", padding: "12px 0", borderRadius: 8,
+                cursor: loading ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 15,
+              }}
+            >
+              {loading ? "Enviando..." : "Enviar Solicitação"}
+            </button>
+
+            <div style={{ marginTop: 20, textAlign: "center" }}>
+              <button
+                onClick={() => { setIsRequesting(false); setErr(""); }}
+                style={{ background: "none", border: "none", fontSize: 12, color: "#475569", textDecoration: "underline", padding: 0, cursor: "pointer" }}
+              >
+                Voltar ao Login
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

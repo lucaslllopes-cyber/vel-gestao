@@ -10,11 +10,14 @@ generator client {
 
 model User {
   id         String   @id @default(uuid())
-  nome       String
-  login      String   @unique
-  senhaHash  String
-  role       String   @default("CORRETOR")
-  createdAt  DateTime @default(now())
+  nome         String
+  login        String   @unique
+  senhaHash    String
+  role         String   @default("CORRETOR")
+  status       String   @default("ATIVO") // ATIVO | PENDENTE | INATIVO | RECUSADO
+  telefone     String?
+  imobiliaria  String?
+  createdAt    DateTime @default(now())
 
   lotes      Lote[]     @relation("UserReservas")
   propostas  Proposta[] @relation("UserPropostas")
