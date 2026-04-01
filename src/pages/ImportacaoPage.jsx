@@ -30,7 +30,7 @@ export function ImportacaoPage({ user, onRefreshLotes }) {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${BASE_URL}/admin/lotes/import/preview`, {
+      const res = await fetch(`${BASE_URL}/lotes/import-preview`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${user.token}`
@@ -67,7 +67,7 @@ export function ImportacaoPage({ user, onRefreshLotes }) {
         return;
       }
 
-      const res = await fetch(`${BASE_URL}/admin/lotes/import/confirm`, {
+      const res = await fetch(`${BASE_URL}/lotes/import-confirm`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

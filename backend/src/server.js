@@ -401,10 +401,9 @@ app.post("/users", requireAuth, async (req, res) => {
   }
 });
 
-// ── IMPORTAÇÃO DE PLANILHA (Admin) ──
-
-// POST /admin/lotes/import/preview
-app.post("/admin/lotes/import/preview", requireAuth, upload.single('file'), async (req, res) => {
+// ── IMPORTAÇÃO DE PLANILHA (Admin Only — via Role Check) ──
+// POST /lotes/import-preview
+app.post("/lotes/import-preview", requireAuth, upload.single('file'), async (req, res) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
   
   try {
@@ -494,8 +493,8 @@ app.post("/admin/lotes/import/preview", requireAuth, upload.single('file'), asyn
   }
 });
 
-// POST /admin/lotes/import/confirm
-app.post("/admin/lotes/import/confirm", requireAuth, async (req, res) => {
+// POST /lotes/import-confirm
+app.post("/lotes/import-confirm", requireAuth, async (req, res) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
   
   const { updates } = req.body; // Array de { id, valoresNovos }
