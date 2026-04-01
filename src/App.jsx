@@ -53,7 +53,7 @@ export default function App() {
   const [cfg, setCfg]     = useState(() => LS.g(STORAGE_KEYS.CFG,    DEFAULT_CFG));
 
   // ── UI state ──
-  const [tab, setTab]   = useState("vista-geral");
+  const [tab, setTab]   = useState("espelho");
   const [sel, setSel]   = useState(null);
   const [fs,  setFS]    = useState("Todos");
   const [fq,  setFQ]    = useState("Todas");
@@ -426,7 +426,7 @@ export default function App() {
 
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 11, color: "#E2E8F0", fontWeight: 500 }}>{user.nome}</span>
-          <button onClick={() => { setUser(null); setSel(null); setTab("vista-geral"); }}
+          <button onClick={() => { setUser(null); setSel(null); setTab("espelho"); }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)"}
             onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
             style={{ 
