@@ -89,7 +89,7 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
         }
         @media (max-width: 768px) {
           .espelho-container { padding: 8px !important; }
-          .espelho-svg-wrapper { padding: 4px !important; }
+          .espelho-svg-wrapper { padding: 20px 12px !important; }
         }
       `}</style>
 
@@ -108,10 +108,9 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
         {/* Recipiente que restringe o pan/zoom dentro do padding */}
         <div className="espelho-svg-wrapper" style={{ flex: 1, position: "relative", overflow: "hidden", borderRadius: "8px", background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
           <TransformWrapper
-        initialScale={1}
+        initialScale={window.innerWidth < 768 ? 0.9 : 1}
         minScale={0.1}
         maxScale={6}
-        centerOnInit={true}
         centerZoomedOut={true}
         doubleClick={{ step: 0.5 }}
         pinch={{ step: 5 }}
