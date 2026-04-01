@@ -71,7 +71,7 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
   const lotesMapeados = lots.filter(l => geometria[l.id]);
 
   return (
-    <div style={{ flex: 1, background: "#F5F7F2", position: "relative", display: "flex", flexDirection: "column", padding: "16px" }}>
+    <div style={{ flex: 1, background: "#F5F7F2", position: "relative", display: "flex", flexDirection: "column", padding: "16px", minHeight: 0 }}>
       
       {/* Header interno do Espelho */}
       <div className="espelho-header" style={{ marginBottom: "16px", paddingLeft: "4px" }}>
@@ -108,7 +108,7 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
         {/* Recipiente que restringe o pan/zoom dentro do padding */}
         <div className="espelho-svg-wrapper" style={{ flex: 1, position: "relative", overflow: "hidden", borderRadius: "8px", background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
           <TransformWrapper
-        initialScale={window.innerWidth < 768 ? 0.8 : 1}
+        initialScale={1}
         minScale={0.1}
         maxScale={6}
         centerOnInit={true}
@@ -117,7 +117,10 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
         pinch={{ step: 5 }}
         wheel={{ step: 0.1 }}
       >
-        <TransformComponent wrapperStyle={{ width: "100%", height: "100%" }}>
+        <TransformComponent 
+          wrapperStyle={{ width: "100%", height: "100%", touchAction: "none" }}
+          contentStyle={{ width: "100%", height: "100%", touchAction: "none" }}
+        >
           <svg width="100%" height="100%" viewBox={viewBox} style={{ cursor: "grab", display: "block" }}>
         
         {/* Construção Base 1: Áreas Especiais (Mais ao fundo) */}
