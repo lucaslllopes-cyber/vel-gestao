@@ -25,7 +25,17 @@ export function LoginPage({ onLogin }) {
       const data = await res.json();
       if (!res.ok) { setErr(data.error || "Credenciais inválidas."); return; }
       // data = { token, user: { id, login, role, nome } }
-      onLogin({ ...data.user, token: data.token });
+      
+      // FIX para iOS/Safari: remove o foco do input para forçar o fechamento do teclado
+      // e resetar o zoom automático antes da transição da tela
+      if (document.activeElement) {
+        document.activeElement.blur();
+      }
+      
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        onLogin({ ...data.user, token: data.token });
+      }, 150);
     } catch (e) {
       setErr("Sem conexão com o servidor. Verifique se o backend está rodando.");
     } finally {
