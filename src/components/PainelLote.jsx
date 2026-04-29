@@ -132,7 +132,7 @@ export function PainelLote({
       {/* Ações */}
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
 
-        {(lot.status === "Disponível" ||
+        {( (isAdmin && lot.status === "Disponível") ||
           (lot.status === "Reservado" && lot.reservaOwnerId === user.id)
         ) && (
           <button 
@@ -159,7 +159,7 @@ export function PainelLote({
           </button>
         )}
 
-        {isAdmin && lot.status === "Disponível" && (
+        {lot.status === "Disponível" && (
           <button onClick={() => onReservar({
             ...lot,
             status:        "Reservado",

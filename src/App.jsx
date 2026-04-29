@@ -259,7 +259,7 @@ export default function App() {
         }
         toast$(`✅ ${data.message} Vence: ${new Date(data.reservaVenceEm).toLocaleTimeString()}`);
         await fetchLotes();
-        setSel(prev => ({ ...prev, status: "Reservado", reservaVenceEm: data.reservaVenceEm }));
+        setSel(prev => ({ ...prev, status: "Reservado", reservaVenceEm: data.reservaVenceEm, reservaOwnerId: user.id }));
       } catch (e) {
         console.error("[RESERVA] Erro de rede:", e);
         toast$(`Falha de rede: ${e.message}`, "err");
