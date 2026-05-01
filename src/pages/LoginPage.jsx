@@ -119,55 +119,59 @@ export function LoginPage({ onLogin }) {
         )}
 
         {!isRequesting ? (
-          <>
-        <Field
-          label="Usuário"
-          value={lf.u}
-          onChange={v => setLF(f => ({ ...f, u: v }))}
-          placeholder="Usuário"
-          autoComplete="username"
-        />
-        <div style={{ marginBottom: 12 }}>
-          <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4,
-            textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
-            Senha
-          </div>
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={lf.p}
-            onChange={e => setLF(f => ({ ...f, p: e.target.value }))}
-            onKeyDown={e => e.key === "Enter" && doLogin()}
-            style={{
-              width: "100%", background: "#f8fafc", border: "1px solid var(--border-color)",
-              borderRadius: 8, padding: "12px 14px", color: "var(--text-primary)",
-              fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s"
-            }}
-          />
-        </div>
+          <form onSubmit={e => { e.preventDefault(); doLogin(); }}>
+            <Field
+              label="Usuário"
+              name="username"
+              value={lf.u}
+              onChange={v => setLF(f => ({ ...f, u: v }))}
+              placeholder="Usuário"
+              autoComplete="username"
+              required
+            />
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4,
+                textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+                Senha
+              </div>
+              <input
+                type="password"
+                name="password"
+                autoComplete="current-password"
+                value={lf.p}
+                onChange={e => setLF(f => ({ ...f, p: e.target.value }))}
+                required
+                style={{
+                  width: "100%", background: "#f8fafc", border: "1px solid var(--border-color)",
+                  borderRadius: 8, padding: "12px 14px", color: "var(--text-primary)",
+                  fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s"
+                }}
+              />
+            </div>
 
-        <button
-          onClick={doLogin}
-          disabled={loading}
-          className="btn-primary"
-          style={{ width: "100%", padding: "14px 0", fontSize: 16, marginTop: 12 }}
-        >
-          {loading ? "Autenticando..." : "Entrar no Sistema"}
-        </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary"
+              style={{ width: "100%", padding: "14px 0", fontSize: 16, marginTop: 12 }}
+            >
+              {loading ? "Autenticando..." : "Entrar no Sistema"}
+            </button>
 
 
-        <div style={{ marginTop: 20, textAlign: "center" }}>
-          <button
-            onClick={() => { setIsRequesting(true); setErr(""); setSuccess(""); }}
-            style={{
-              background: "none", border: "none", fontSize: 12, color: "#475569",
-              textDecoration: "underline", padding: 0, cursor: "pointer",
-            }}
-          >
-            Solicitar acesso
-          </button>
-        </div>
-        </>
+            <div style={{ marginTop: 20, textAlign: "center" }}>
+              <button
+                type="button"
+                onClick={() => { setIsRequesting(true); setErr(""); setSuccess(""); }}
+                style={{
+                  background: "none", border: "none", fontSize: 12, color: "#475569",
+                  textDecoration: "underline", padding: 0, cursor: "pointer",
+                }}
+              >
+                Solicitar acesso
+              </button>
+            </div>
+          </form>
         ) : (
           <>
             <Field label="Nome Completo" value={rf.nome} onChange={v => setRF(f => ({...f, nome: v}))} placeholder="Nome" />

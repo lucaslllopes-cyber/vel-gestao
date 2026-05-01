@@ -16,12 +16,29 @@ import {
 
 const app = express();
 const prisma = new PrismaClient();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // Limite de 5MB para evitar DoS
+});
 
-app.use(cors());
+// Configuração de CORS Restrita
+const corsOptions = {
+  origin: process.env.NODE_ENV === "production" 
+    ? ["https://app.velgestao.com", "https://velgestao.com", "https://www.velgestao.com"] 
+    : "*",
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
-const JWT_SECRET = process.env.JWT_SECRET || "terravista_super_secret_dev";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === "production") {
+  console.error("FATAL: JWT_SECRET não definida em ambiente de produção!");
+  process.exit(1);
+}
+const FINAL_JWT_SECRET = JWT_SECRET || "terravista_dev_secret_only";
 
 // ── MIDDLEWARE AUTH ──
 const requireAuth = (req, res, next) => {
@@ -30,12 +47,28 @@ const requireAuth = (req, res, next) => {
   
   const token = authHeader.split(" ")[1];
   try {
-    const payload = jwt.verify(token, JWT_SECRET);
+    const payload = jwt.verify(token, FINAL_JWT_SECRET);
     req.user = payload;
     next();
   } catch (e) {
     return res.status(401).json({ error: "Token inválido" });
   }
+};
+
+const optionalAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    req.user = null;
+    return next();
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, FINAL_JWT_SECRET);
+    req.user = payload;
+  } catch (e) {
+    req.user = null;
+  }
+  next();
 };
 
 // ── ROTAS BASILARES ──
@@ -60,8 +93,8 @@ app.post("/auth/login", async (req, res) => {
 
   const token = jwt.sign(
     { id: user.id, login: user.login, role: user.role.toLowerCase(), nome: user.nome }, 
-    JWT_SECRET, 
-    { expiresIn: "12h" }
+    FINAL_JWT_SECRET, 
+    { expiresIn: "30d" }
   );
   
   res.json({
@@ -127,12 +160,20 @@ app.post("/auth/solicitar-acesso", async (req, res) => {
   }
 });
 
-// GET /lotes
-app.get("/lotes", async (req, res) => {
+// GET /lotes — Público, mas esconde dados sensíveis se deslogado
+app.get("/lotes", optionalAuth, async (req, res) => {
   try {
     const lotes = await prisma.lote.findMany();
-    // Opcional: Omitir "comprador" se o requester for corretor,
-    // mas na Fase 1 abriremos para validar o bind do App.jsx primeiro.
+    
+    // Se não estiver logado, oculta nomes dos compradores (Privacidade/LGPD)
+    if (!req.user) {
+      return res.json(lotes.map(l => ({
+        ...l,
+        comprador: l.comprador ? "Reservado/Vendido" : null,
+        compradorAnterior: null
+      })));
+    }
+
     res.json(lotes);
   } catch (error) {
     res.status(500).json({ error: "Erro interno no BD" });
