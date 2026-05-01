@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────────────────────────
 import { brl, brl0, m2 } from "../utils/format";
 
-export function SimuladorModal({ sel, sim, setSim, result, cfg, onProximo, onClose }) {
+export function SimuladorModal({ sel, sim, setSim, result, cfg, canPropose = true, proposeMessage, onReservar, onProximo, onClose }) {
   return (
     <div style={{
       position: "fixed", inset: 0, background: "#000c", zIndex: 200,
@@ -217,13 +217,33 @@ export function SimuladorModal({ sel, sim, setSim, result, cfg, onProximo, onClo
           </div>
         )}
 
-        <button onClick={onProximo} style={{
-          width: "100%", background: "linear-gradient(135deg,#16a34a,#15803d)",
-          border: "none", color: "#fff", padding: "12px 0", borderRadius: 8,
-          cursor: "pointer", fontWeight: 700, fontSize: 14,
-        }}>
-          📩 Prosseguir → Dados do Cliente
-        </button>
+        {canPropose ? (
+          <button onClick={onProximo} style={{
+            width: "100%", background: "linear-gradient(135deg,#16a34a,#15803d)",
+            border: "none", color: "#fff", padding: "12px 0", borderRadius: 8,
+            cursor: "pointer", fontWeight: 700, fontSize: 14,
+          }}>
+            📩 Prosseguir → Dados do Cliente
+          </button>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <button disabled style={{
+              width: "100%", background: "#1e293b", border: "1px solid #334155",
+              color: "#94a3b8", padding: "12px 10px", borderRadius: 8,
+              cursor: "not-allowed", fontWeight: 600, fontSize: 13, lineHeight: 1.3,
+            }}>
+              🚫 {proposeMessage || "Proposta bloqueada"}
+            </button>
+            {sel.status === "Disponível" && (
+              <button onClick={onReservar} style={{
+                width: "100%", background: "#1a1000", border: "1px solid #d9770644", color: "#fbbf24",
+                padding: "12px 0", borderRadius: 8, cursor: "pointer", fontWeight: 700, fontSize: 14,
+              }}>
+                🔖 Reservar este lote ({cfg.reserva_horas}h)
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

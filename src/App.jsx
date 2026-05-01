@@ -564,6 +564,19 @@ export default function App() {
       {simOpen && sel && (
         <SimuladorModal
           sel={sel} sim={sim} setSim={setSim} result={result} cfg={cfg}
+          canPropose={(isAdmin && sel.status === "Disponível") || (sel.status === "Reservado" && sel.reservaOwnerId === user.id)}
+          proposeMessage={
+            sel.status === "Disponível" 
+              ? "Para enviar proposta, reserve este lote primeiro." 
+              : "Lote reservado por outro corretor. Simulação liberada, proposta bloqueada enquanto a reserva estiver ativa."
+          }
+          onReservar={() => painelCallbacks.onReservar({
+            ...sel,
+            status:        "Reservado",
+            reservado_em:  isoNow(),
+            reservado_ate: isoAdd(cfg.reserva_horas),
+            reservado_por: user.login,
+          })}
           onProximo={() => { setSimOpen(false); setPropOpen(true); }}
           onClose={() => setSimOpen(false)}
         />

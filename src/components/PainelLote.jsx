@@ -132,6 +132,18 @@ export function PainelLote({
       {/* Ações */}
       <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 5 }}>
 
+        {lot.status === "Disponível" && !isAdmin && (
+          <button 
+            onClick={onSimular} 
+            style={{
+              background: "#1a2a36", border: "1px solid #1e3a5f", color: "#60a5fa",
+              padding: "8px 0", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: 12
+            }}
+          >
+            🧮 Simular
+          </button>
+        )}
+
         {( (isAdmin && lot.status === "Disponível") ||
           (lot.status === "Reservado" && lot.reservaOwnerId === user.id)
         ) && (
@@ -148,6 +160,27 @@ export function PainelLote({
           >
             🧮 Simular & Propor
           </button>
+        )}
+
+        {lot.status === "Reservado" && lot.reservaOwnerId !== user.id && (
+          <>
+            <button 
+              onClick={onSimular} 
+              style={{
+                background: "#1a2a36", border: "1px solid #1e3a5f", color: "#60a5fa",
+                padding: "8px 0", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: 12
+              }}
+            >
+              🧮 Simular
+            </button>
+            <div style={{
+              fontSize: 10, color: "#64748b", background: "#0f172a", padding: "8px 10px",
+              borderRadius: 6, border: "1px solid #1e293b", marginTop: 2, textAlign: "center",
+              lineHeight: 1.3
+            }}>
+              Lote reservado por outro corretor. Simulação liberada, proposta bloqueada enquanto a reserva estiver ativa.
+            </div>
+          </>
         )}
 
         {isAdmin && (
