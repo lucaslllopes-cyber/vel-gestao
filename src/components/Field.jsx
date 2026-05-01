@@ -14,11 +14,12 @@ export function Field({ label, value, onChange, type = "text", placeholder = "",
         value={value}
         placeholder={placeholder}
         onChange={e => onChange(type === "number" ? parseFloat(e.target.value) || 0 : e.target.value)}
-        style={{ width: "100%", background: "#141e2e", border: "1px solid #1e3a5f",
-          borderRadius: 7, padding: "9px 11px", color: "#e2e8f0", fontSize: 13,
-          outline: "none", boxSizing: "border-box" }}
+        style={{ width: "100%", background: "#f8fafc", border: "1px solid var(--border-color)",
+          borderRadius: 8, padding: "11px 13px", color: "var(--text-primary)", fontSize: 14,
+          outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }}
       />
-      {note && <div style={{ fontSize: 9, color: "#334155", marginTop: 3 }}>{note}</div>}
+      {note && <div style={{ fontSize: 10, color: "var(--text-secondary)", marginTop: 4 }}>{note}</div>}
+
     </div>
   );
 }

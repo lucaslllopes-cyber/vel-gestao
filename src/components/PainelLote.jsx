@@ -50,17 +50,18 @@ export function PainelLote({
   // "flutuante" → sobreposição absoluta (futuro Espelho em mapa)
   const estiloContainer = modo === "flutuante"
     ? {
-        position: "absolute", top: topOffset, right: 16, zIndex: 50,
-        width: 290, maxHeight: `calc(100% - ${topOffset + 16}px)`,
-        background: "#090e16", border: "1px solid #1e293b",
-        borderRadius: 10, padding: 15, overflow: "auto",
-        boxShadow: "0 8px 32px #000a",
+        position: "absolute", top: topOffset, right: 16, zIndex: 100,
+        width: 320, maxHeight: `calc(100% - ${topOffset + 16}px)`,
+        background: "var(--bg-card)", border: "1px solid var(--border-color)",
+        borderRadius: "var(--radius-lg)", padding: "24px 20px", overflow: "auto",
+        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
       }
     : {
-        width: 290, background: "#090e16",
-        borderLeft: "1px solid #1e293b",
-        padding: 15, overflow: "auto", flexShrink: 0,
+        width: 320, background: "var(--bg-card)",
+        borderLeft: "1px solid var(--border-color)",
+        padding: "24px 20px", overflow: "auto", flexShrink: 0,
       };
+
 
   const vendido     = lot.status === "Vendido";
   const mostrar     = isAdmin || !vendido;
@@ -69,23 +70,25 @@ export function PainelLote({
   return (
     <div style={estiloContainer} className={modo === "flutuante" ? "painel-flutuante" : "painel-lateral"}>
 
-      {/* Cabeçalho Fixado (Sticky) para nunca cortar o nome do Lote no Scroll */}
+      {/* Cabeçalho Fixado (Sticky) */}
       <div style={{ 
         display: "flex", justifyContent: "space-between", 
-        position: "sticky", top: -12, background: "#090e16", 
-        paddingTop: 12, paddingBottom: 8, marginBottom: 8, 
-        zIndex: 60, borderBottom: "1px solid rgba(30, 41, 59, 0.4)",
-        margin: "-15px -15px 8px -15px", paddingLeft: 15, paddingRight: 15
+        position: "sticky", top: -24, background: "var(--bg-card)", 
+        paddingTop: 0, paddingBottom: 16, marginBottom: 16, 
+        zIndex: 60, borderBottom: "1px solid var(--border-color)",
+        margin: "0 -20px 16px -20px", paddingLeft: 20, paddingRight: 20
       }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: "#f1f5f9", lineHeight: 1.1 }}>Lote {lot.n}</div>
-          <div style={{ fontSize: 10, color: "#475569", marginTop: 2 }}>Quadra {lot.q} · {lot.id}</div>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", lineHeight: 1.1 }}>Lote {lot.n}</div>
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4, fontWeight: 500 }}>Quadra {lot.q} · {lot.id}</div>
         </div>
         <button onClick={onClose}
-          style={{ background: "none", border: "none", color: "#475569", cursor: "pointer", fontSize: 16 }}>
+          style={{ background: "#f1f5f9", border: "none", color: "var(--text-secondary)", cursor: "pointer", 
+            width: 32, height: 32, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
           ✕
         </button>
       </div>
+
 
       {/* Badge de status */}
       <div style={{
@@ -100,20 +103,23 @@ export function PainelLote({
       {/* Campos de detalhe — mascarados para corretor em lotes Vendidos */}
       {mostrar
         ? [
-            { l: "Área",      v: m2(lot.area) },
-            { l: "Valor",     v: brl(lot.valor) },
-            { l: "R$/m²",     v: brl0(lot.valor / lot.area) + "/m²" },
-            ...(lot.comprador ? [{ l: "Comprador", v: lot.comprador }] : []),
-          ].map(({ l, v }) => (
+            { l: "Área",      v: m2(lot.area), i: "📐" },
+            { l: "Valor",     v: brl(lot.valor), i: "💵" },
+            { l: "R$/m²",     v: brl0(lot.valor / lot.area) + "/m²", i: "📊" },
+            ...(lot.comprador ? [{ l: "Comprador", v: lot.comprador, i: "👤" }] : []),
+          ].map(({ l, v, i }) => (
             <div key={l} style={{
-              display: "flex", justifyContent: "space-between",
-              padding: "4px 0", borderBottom: "1px solid #1e293b",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "12px 0", borderBottom: "1px solid var(--border-color)",
             }}>
-              <span style={{ fontSize: 10, color: "#475569", flexShrink: 0 }}>{l}</span>
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#e2e8f0",
-                textAlign: "right", maxWidth: 170 }}>{v}</span>
+              <span style={{ fontSize: 11, color: "var(--text-secondary)", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ opacity: 0.5 }}>{i}</span> {l}
+              </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-primary)",
+                textAlign: "right", maxWidth: 180 }}>{v}</span>
             </div>
           ))
+
         : (
           <div style={{
             background: "#1a0606", border: "1px solid #dc262633",
@@ -135,12 +141,10 @@ export function PainelLote({
         {lot.status === "Disponível" && !isAdmin && (
           <button 
             onClick={onSimular} 
-            style={{
-              background: "#1a2a36", border: "1px solid #1e3a5f", color: "#60a5fa",
-              padding: "8px 0", borderRadius: 6, cursor: "pointer", fontWeight: 600, fontSize: 12
-            }}
+            className="btn-outline-gold"
+            style={{ width: "100%", marginTop: 12 }}
           >
-            🧮 Simular
+            🧮 Simular Condições
           </button>
         )}
 
@@ -149,18 +153,16 @@ export function PainelLote({
         ) && (
           <button 
             onClick={onSimular} 
-            onMouseEnter={e => e.currentTarget.style.filter = "brightness(1.2)"}
-            onMouseLeave={e => e.currentTarget.style.filter = "none"}
-            style={{
-              background: "linear-gradient(135deg, #275D6F, #1F4E5F)", border: "1px solid rgba(200, 162, 74, 0.4)",
-              color: "#C8A24A", padding: "8px 0", borderRadius: 6, cursor: "pointer",
-              fontWeight: 700, fontSize: 12, transition: "filter 0.2s ease, box-shadow 0.2s",
-              boxShadow: "0 4px 12px rgba(31, 78, 95, 0.3)"
+            className="btn-primary"
+            style={{ 
+              width: "100%", marginTop: 12, display: "flex", alignItems: "center", 
+              justifyContent: "center", gap: 8, padding: "14px 0" 
             }}
           >
             🧮 Simular & Propor
           </button>
         )}
+
 
         {lot.status === "Reservado" && lot.reservaOwnerId !== user.id && !isAdmin && (
           <>
@@ -199,13 +201,12 @@ export function PainelLote({
             reservado_em:  isoNow(),
             reservado_ate: isoAdd(cfg.reserva_horas),
             reservado_por: user.login,
-          })} style={{
-            background: "#1a1000", border: "1px solid #d9770633", color: "#fbbf24",
-            padding: "8px 0", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 12,
-          }}>
-            🔖 Reservar ({cfg.reserva_horas}h)
+          })} className="btn-outline-gold"
+          style={{ width: "100%", padding: "12px 0", borderStyle: "dashed" }}>
+            🔖 Reservar por {cfg.reserva_horas}h
           </button>
         )}
+
 
         {isAdmin && lot.status === "Reservado" && (
           <>

@@ -72,32 +72,31 @@ export function LoginPage({ onLogin }) {
     }
   };
 
-  return (    <div style={{
-      minHeight: "100vh", background: "#060a0e",
+  return (
+    <div style={{
+      minHeight: "100vh", background: "var(--navy-primary)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'DM Sans','Segoe UI',sans-serif",
+      padding: "20px"
     }}>
       <div style={{
         position: "absolute", inset: 0,
-        backgroundImage:
-          "radial-gradient(ellipse at 30% 30%,#0a2010 0%,transparent 60%)," +
-          "radial-gradient(ellipse at 70% 70%,#140a00 0%,transparent 60%)",
+        background: "radial-gradient(circle at top right, rgba(200,162,74,0.1), transparent 40%), radial-gradient(circle at bottom left, rgba(0,0,0,0.3), transparent 50%)",
       }} />
-      <div style={{
-        position: "relative", width: 360,
-        background: "#0c1118", border: "1px solid #1e293b",
-        borderRadius: 16, padding: 36, boxShadow: "0 32px 80px #000d",
+      
+      <div className="premium-card" style={{
+        position: "relative", width: 400, maxWidth: "100%",
+        background: "var(--bg-card)", padding: "48px 40px",
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+        borderRadius: "var(--radius-lg)"
       }}>
-        <div style={{ textAlign: "center", marginBottom: 28 }}>
-          <div style={{ fontSize: 44, marginBottom: 8 }}>🌿</div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#f1f5f9", letterSpacing: "-0.5px" }}>
-            Terra Vista
-          </div>
-          <div style={{ fontSize: 11, color: "#475569", marginTop: 3,
-            textTransform: "uppercase", letterSpacing: "1.5px" }}>
-            Residencial · Caldas MG
+        <div style={{ textAlign: "center", marginBottom: 36 }}>
+          <img src="/logo.png" alt="Terra Vista" style={{ height: 48, marginBottom: 16, filter: "brightness(0.2)" }} />
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 4,
+            textTransform: "uppercase", letterSpacing: "2px", fontWeight: 700 }}>
+            Painel de Gestão Comercial
           </div>
         </div>
+
 
         {err && (
           <div style={{
@@ -138,9 +137,9 @@ export function LoginPage({ onLogin }) {
             onChange={e => setLF(f => ({ ...f, p: e.target.value }))}
             onKeyDown={e => e.key === "Enter" && doLogin()}
             style={{
-              width: "100%", background: "#141e2e", border: "1px solid #1e3a5f",
-              borderRadius: 7, padding: "9px 11px", color: "#e2e8f0",
-              fontSize: 13, outline: "none", boxSizing: "border-box",
+              width: "100%", background: "#f8fafc", border: "1px solid var(--border-color)",
+              borderRadius: 8, padding: "12px 14px", color: "var(--text-primary)",
+              fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s"
             }}
           />
         </div>
@@ -148,14 +147,12 @@ export function LoginPage({ onLogin }) {
         <button
           onClick={doLogin}
           disabled={loading}
-          style={{
-            width: "100%", background: loading ? "#15803d88" : "linear-gradient(135deg,#16a34a,#15803d)",
-            border: "none", color: "#fff", padding: "12px 0", borderRadius: 8,
-            cursor: loading ? "not-allowed" : "pointer", fontWeight: 700, fontSize: 15, marginTop: 4,
-          }}
+          className="btn-primary"
+          style={{ width: "100%", padding: "14px 0", fontSize: 16, marginTop: 12 }}
         >
-          {loading ? "Entrando..." : "Entrar"}
+          {loading ? "Autenticando..." : "Entrar no Sistema"}
         </button>
+
 
         <div style={{ marginTop: 20, textAlign: "center" }}>
           <button

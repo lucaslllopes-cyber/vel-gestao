@@ -74,10 +74,11 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
     <div style={{ flex: 1, background: "#F5F7F2", position: "relative", display: "flex", flexDirection: "column", padding: "16px", minHeight: 0 }}>
       
       {/* Header interno do Espelho */}
-      <div className="espelho-header" style={{ marginBottom: "16px", paddingLeft: "4px" }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: "#1e293b" }}>Planta Geral</div>
-        <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>{lotesMapeados.length} lotes mapeados na visualização atual</div>
+      <div className="espelho-header" style={{ marginBottom: "20px", paddingLeft: "8px" }}>
+        <div style={{ fontSize: 24, fontWeight: 800, color: "var(--navy-primary)", letterSpacing: "-0.5px" }}>Mapa do Residencial</div>
+        <div style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>{lotesMapeados.length} lotes mapeados na visualização atual</div>
       </div>
+
 
       <style>{`
         .lote-group .status-indicator {
@@ -94,19 +95,20 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
       `}</style>
 
       {/* Módulo Estilizado do Mapa (Card Component) */}
-      <div className="espelho-container" style={{ 
+      <div className="espelho-container premium-card" style={{ 
         flex: 1, 
-        background: "#FFFFFF", 
-        borderRadius: "12px", 
-        border: "1px solid #E5E7EB", 
-        boxShadow: "0 10px 25px -5px rgba(0,0,0,0.05), 0 4px 10px -5px rgba(0,0,0,0.02)", 
         position: "relative", 
-        padding: "20px",
+        padding: "0",
         display: "flex",
-        flexDirection: "column"
+        flexDirection: "column",
+        overflow: "hidden",
+        border: "none",
+        boxShadow: "var(--shadow-lg)"
       }}>
-        {/* Recipiente que restringe o pan/zoom dentro do padding */}
-        <div className="espelho-svg-wrapper" style={{ flex: 1, position: "relative", overflow: "hidden", borderRadius: "8px", background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
+
+        {/* Recipiente que restringe o pan/zoom */}
+        <div className="espelho-svg-wrapper" style={{ flex: 1, position: "relative", overflow: "hidden", background: "#f8fafc" }}>
+
           <TransformWrapper
         initialScale={window.innerWidth < 768 ? 0.9 : 1}
         minScale={0.1}
@@ -274,20 +276,23 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
         </TransformComponent>
       </TransformWrapper>
       
-      {/* Legenda de Status (Bottom/Top Right responsive) */}
-      <div className="espelho-legend" style={{ position: "absolute", bottom: 20, left: 20, background: "rgba(255, 255, 255, 0.9)", backdropFilter: "blur(4px)", padding: "12px 16px", borderRadius: 10, border: "1px solid #E2E8F0", boxShadow: "0 4px 12px rgba(0,0,0,0.08)", zIndex: 10 }}>
-        <div className="espelho-legend-title" style={{ fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "1px", marginBottom: 8 }}>
-          Legenda
-        </div>
-        <div className="espelho-legend-items" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Legenda de Status (Bottom Left) */}
+      <div className="espelho-legend premium-card" style={{ 
+        position: "absolute", bottom: 24, left: 24, 
+        background: "rgba(255, 255, 255, 0.95)", backdropFilter: "blur(8px)", 
+        padding: "16px", borderRadius: "var(--radius-md)", 
+        border: "1px solid var(--border-color)", zIndex: 10 
+      }}>
+        <div className="espelho-legend-items" style={{ display: "flex", gap: 16 }}>
           {Object.entries(SC).map(([status, colors]) => (
             <div key={status} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: colors.bg, boxShadow: `0 0 6px ${colors.bg}40` }} />
-              <div style={{ fontSize: 12, color: "#475569", fontWeight: 600 }}>{status}</div>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: colors.bg }} />
+              <div style={{ fontSize: 11, color: "var(--text-primary)", fontWeight: 700 }}>{status}</div>
             </div>
           ))}
         </div>
       </div>
+
       </div> {/* Fim do Recipiente SVG / Pan Zoom */}
       </div> {/* Fim do Módulo Card (Caixa com Padding e Sombra) */}
 

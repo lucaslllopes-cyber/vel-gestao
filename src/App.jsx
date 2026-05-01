@@ -359,158 +359,192 @@ export default function App() {
   }
 
   return (
-    <div className={tab === "espelho" ? "is-espelho-tab" : ""} style={{
-      fontFamily: "'DM Sans','Segoe UI',sans-serif",
-      background: "#060a0e", height: "100svh", overflow: "hidden",
-      color: "#e2e8f0", display: "flex", flexDirection: "column",
+    <div className={(tab === "espelho" ? "is-espelho-tab " : "") + "app-root"} style={{
+      height: "100svh", overflow: "hidden",
+      display: "flex", flexDirection: "column",
     }}>
+
       <style>
         {`
           .mobile-nav-btn { display: none; }
+          .bottom-nav { display: none; }
           @media (max-width: 768px) {
             .app-main-layout { flex-direction: column !important; }
             .desktop-nav { display: none !important; }
             .mobile-nav-btn { display: flex !important; }
-            .painel-lateral { position: fixed !important; bottom: 0 !important; top: auto !important; right: 0 !important; left: 0 !important; width: 100% !important; z-index: 200 !important; max-height: 75vh !important; padding: 15px !important; padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; border-radius: 18px 18px 0 0 !important; border: none !important; border-top: 1px solid #1e293b !important; box-shadow: 0 -10px 40px rgba(0,0,0,0.8) !important; overflow-y: auto !important; }
-            .painel-flutuante { position: absolute !important; bottom: 0 !important; top: auto !important; right: 0 !important; left: 0 !important; width: 100% !important; z-index: 100 !important; max-height: 70vh !important; padding: 15px !important; padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px)) !important; border-radius: 18px 18px 0 0 !important; border: none !important; border-top: 1px solid #1e293b !important; box-shadow: 0 -10px 40px rgba(0,0,0,0.8) !important; overflow-y: auto !important; }
-            .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
-            .kpi-grid > div:last-child { grid-column: span 2 !important; }
+            .bottom-nav { 
+              display: flex !important; 
+              position: fixed; bottom: 0; left: 0; right: 0; 
+              height: 64px; background: white; border-top: 1px solid var(--border-color);
+              z-index: 200; justify-content: space-around; align-items: center;
+              padding-bottom: env(safe-area-inset-bottom, 0px);
+              box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+            }
+            .bottom-nav-item {
+              display: flex; flex-direction: column; align-items: center; gap: 4px;
+              color: var(--text-secondary); font-size: 10px; font-weight: 600;
+              cursor: pointer; flex: 1; padding: 8px 0;
+            }
+            .bottom-nav-item.active { color: var(--navy-primary); }
+            .bottom-nav-item i { font-size: 20px; }
+            
+            .painel-lateral, .painel-flutuante { 
+              position: fixed !important; bottom: 64px !important; top: auto !important; 
+              right: 0 !important; left: 0 !important; width: 100% !important; 
+              z-index: 150 !important; max-height: 70vh !important; 
+              border-radius: 24px 24px 0 0 !important; border: none !important; 
+              border-top: 1px solid var(--border-color) !important; 
+              box-shadow: 0 -10px 40px rgba(0,0,0,0.1) !important; 
+            }
+            .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; padding: 12px !important; }
             .is-espelho-tab .kpi-grid { display: none !important; }
-            .is-espelho-tab .filter-bar { padding: 4px 10px !important; gap: 4px !important; }
             .espelho-header { display: none !important; }
-            .espelho-legend { bottom: auto !important; top: 10px !important; right: 10px !important; left: auto !important; padding: 6px 10px !important; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 8px !important; }
-            .espelho-legend-title { display: none !important; }
-            .espelho-legend-items { flex-direction: row !important; gap: 6px !important; }
           }
+
         `}
       </style>
       <Toast toast={toast} />
 
       {/* ── NAV ── */}
-      <div style={{
-        background: "#133541", borderBottom: "1px solid rgba(229, 231, 235, 0.1)",
-        padding: "0 16px", display: "flex", alignItems: "center",
-        height: 56, gap: 12, position: "sticky", top: 0, zIndex: 90, flexShrink: 0,
-      }}>
-        <img 
-          src="/logo.png" 
-          alt="Residencial Terra Vista" 
-          style={{ height: 38, objectFit: "contain", display: "block" }} 
-        />
-        <span style={{ fontSize: 9, color: "#C8A24A", background: "#1F4E5F", border: "1px solid rgba(200, 162, 74, 0.3)",
-          padding: "3px 8px", borderRadius: 4, textTransform: "uppercase", fontWeight: "700" }}>
-          {isAdmin ? "Admin" : "Corretor"}
-        </span>
+      <nav className="premium-header">
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <img 
+            src="/logo.png" 
+            alt="Residencial Terra Vista" 
+            style={{ height: 32, objectFit: "contain", display: "block" }} 
+          />
+          <div style={{ height: 24, width: 1, background: "rgba(255,255,255,0.15)" }} />
+          <span style={{ fontSize: 10, color: "var(--gold-primary)", background: "rgba(200, 162, 74, 0.1)",
+            padding: "2px 8px", borderRadius: 4, textTransform: "uppercase", fontWeight: "800", letterSpacing: "0.5px" }}>
+            {isAdmin ? "Administrador" : "Consultor VEL"}
+          </span>
+        </div>
 
-        <div className="desktop-nav" style={{ gap: 2, marginLeft: 10, display: "flex" }}>
+        <div className="desktop-nav" style={{ gap: 4, display: "flex", marginLeft: 24 }}>
           {navTabs.map(({ k, l }) => (
-            <button key={k} onClick={() => setTab(k)} style={{
-              padding: "5px 11px", borderRadius: 5, border: "none", cursor: "pointer",
-              fontSize: 11, fontWeight: 600,
-              background: tab === k ? "#1F4E5F" : "transparent",
-              color: tab === k ? "#C8A24A" : "#94A3B8",
-              transition: "all 0.2s"
-            }}>
+            <div key={k} className={`premium-nav-item ${tab === k ? "active" : ""}`} onClick={() => setTab(k)}>
               {l}
-            </button>
+            </div>
           ))}
         </div>
 
-        <button className="mobile-nav-btn" onClick={() => setMenuOpen(!menuOpen)} style={{
-          marginLeft: "auto", background: "transparent", border: "none", color: "#C8A24A",
-          fontSize: 22, cursor: "pointer", padding: "0 8px", alignItems: "center"
-        }}>
-          ☰
-        </button>
-
-        {menuOpen && (
-          <div className="mobile-nav-btn" style={{
-            position: "absolute", top: 56, left: 0, right: 0, background: "#0F2F3A",
-            flexDirection: "column", padding: "12px 16px 20px", gap: 8, zIndex: 100,
-            borderBottom: "1px solid rgba(229,231,235,0.1)", boxShadow: "0 10px 30px rgba(0,0,0,0.6)"
-          }}>
-            {navTabs.map(({ k, l }) => (
-              <button key={k} onClick={() => { setTab(k); setMenuOpen(false); }} style={{
-                padding: "12px 16px", borderRadius: 6, border: "none", cursor: "pointer",
-                fontSize: 14, fontWeight: 600, textAlign: "left",
-                background: tab === k ? "#1F4E5F" : "transparent",
-                color: tab === k ? "#C8A24A" : "#E2E8F0",
-                transition: "all 0.2s"
-              }}>
-                {l}
-              </button>
-            ))}
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginRight: 8 }}>
+            <div style={{ textAlign: "right", display: "none" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "white", lineHeight: 1 }}>{user.nome}</div>
+            </div>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--gold-primary)", 
+              display: "flex", alignItems: "center", justifyContent: "center", color: "var(--navy-primary)", fontWeight: 800, fontSize: 12 }}>
+              {user.nome.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+            </div>
           </div>
-        )}
-
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 11, color: "#E2E8F0", fontWeight: 500 }}>{user.nome}</span>
+          
+          <button className="mobile-nav-btn" onClick={() => setMenuOpen(!menuOpen)} style={{
+            background: "transparent", border: "none", color: "white",
+            fontSize: 24, cursor: "pointer", display: "flex", alignItems: "center"
+          }}>
+            ☰
+          </button>
+          
           <button onClick={() => { setUser(null); setSel(null); setTab("espelho"); }}
-            onMouseEnter={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.15)"}
-            onMouseLeave={e => e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)"}
-            style={{ 
-              background: "rgba(255, 255, 255, 0.08)", border: "none", color: "#F8FAFC",
-              padding: "5px 10px", borderRadius: 5, cursor: "pointer", fontSize: 10,
-              fontWeight: 600, transition: "background 0.2s" 
-            }}>
+            className="btn-outline-gold"
+            style={{ padding: "6px 12px", fontSize: 11, border: "1px solid rgba(200, 162, 74, 0.4)", color: "white" }}>
             Sair
           </button>
         </div>
-      </div>
+
+        {menuOpen && (
+          <div style={{
+            position: "absolute", top: 64, left: 0, right: 0, background: "var(--navy-dark)",
+            flexDirection: "column", padding: "16px", gap: 8, zIndex: 100,
+            borderBottom: "1px solid var(--border-color)", boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
+            display: "flex"
+          }}>
+            {navTabs.map(({ k, l }) => (
+              <div key={k} className={`premium-nav-item ${tab === k ? "active" : ""}`} onClick={() => { setTab(k); setMenuOpen(false); }}>
+                {l}
+              </div>
+            ))}
+          </div>
+        )}
+      </nav>
+
 
       {/* ── KPIs ── */}
-      <div className="kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 1,
-        background: "#0d222b", borderBottom: "1px solid #0d222b", flexShrink: 0 }}>
+      <div className="kpi-grid">
         {[
-          { l: "Total",       v: stats.total,                         i: "🗂" },
-          { l: "Vendidos",    v: `${stats.v} (${stats.pct}%)`,        i: "✅", c: "#4ade80" },
-          { l: "Reservados",  v: stats.r,                             i: "🔖", c: "#FBBF24" },
-          { l: "Disponíveis", v: stats.d,                             i: "🟢", c: "#38bdf8" },
+          { l: "Total",       v: stats.total,                         i: "🗂", bg: "#f8fafc" },
+          { l: "Vendidos",    v: `${stats.v} (${stats.pct}%)`,        i: "✅", c: "#16a34a", bg: "#f0fdf4" },
+          { l: "Reservados",  v: stats.r,                             i: "🔖", c: "#d97706", bg: "#fffbeb" },
+          { l: "Disponíveis", v: stats.d,                             i: "🟢", c: "#0284c7", bg: "#f0f9ff" },
           isAdmin
-            ? { l: "VGV Vendido",      v: brl0(stats.vv),                    i: "💰", c: "#FBBF24" }
-            : { l: "Lotes disponíveis",v: `${stats.d} de ${stats.total}`,    i: "📊", c: "#94a3b8" },
+            ? { l: "VGV Vendido",      v: brl0(stats.vv),                    i: "💰", c: "var(--navy-primary)", bg: "#f8fafc" }
+            : { l: "Lotes disponíveis",v: `${stats.d} de ${stats.total}`,    i: "📊", c: "var(--text-secondary)", bg: "#f8fafc" },
         ].map((k, i) => (
-          <div key={i} style={{ background: "#1C4A5A", padding: "10px 13px" }}>
-            <div style={{ fontSize: 9, color: "#94A3B8", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              {k.i} {k.l}
+          <div key={i} className="premium-card kpi-card">
+            <div className="kpi-icon-box" style={{ background: k.bg }}>{k.i}</div>
+            <div>
+              <div className="kpi-label">{k.l}</div>
+              <div className="kpi-value" style={{ color: k.c }}>{k.v}</div>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: k.c || "#f1f5f9" }}>{k.v}</div>
           </div>
         ))}
       </div>
-      <div style={{ height: 3, background: "#1e293b", flexShrink: 0 }}>
+
+      <div style={{ height: 4, background: "#f1f5f9", flexShrink: 0, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${stats.pct}%`,
-          background: "linear-gradient(90deg,#1F4E5F,#C8A24A)", transition: "width 0.5s" }} />
+          background: "linear-gradient(90deg, var(--navy-primary), var(--gold-primary))", transition: "width 0.5s" }} />
       </div>
 
-      {/* ── FILTROS (Vista Geral, Lista + Espelho) ── */}
+
+      {/* ── FILTROS ── */}
       {(tab === "vista-geral" || tab === "lista" || tab === "espelho") && (
-        <div className="filter-bar" style={{ padding: "8px 16px", display: "flex", gap: 7, flexWrap: "wrap",
-          alignItems: "center", borderBottom: "1px solid #0d222b",
-          background: "#163A48", flexShrink: 0 }}>
-          <input value={q} onChange={e => setQ(e.target.value)}
-            placeholder="🔍 Lote ou comprador..."
-            style={{ ...inp({ minWidth: 190, padding: "5px 10px", fontSize: 12 }) }} />
-          <div style={{ display: "flex", gap: 3 }}>
+        <div className="filter-bar" style={{ 
+          padding: "12px 24px", display: "flex", gap: 12, flexWrap: "wrap",
+          alignItems: "center", borderBottom: "1px solid var(--border-color)",
+          background: "white", flexShrink: 0 
+        }}>
+          <div style={{ position: "relative", minWidth: 240 }}>
+            <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", opacity: 0.4 }}>🔍</span>
+            <input value={q} onChange={e => setQ(e.target.value)}
+              placeholder="Lote ou comprador..."
+              style={{ 
+                width: "100%", background: "#F8FAFC", border: "1px solid var(--border-color)",
+                borderRadius: 8, padding: "8px 12px 8px 36px", color: "var(--text-primary)",
+                fontSize: 13, outline: "none"
+              }} />
+          </div>
+
+          <div style={{ display: "flex", gap: 6, background: "#F1F5F9", padding: 4, borderRadius: 10 }}>
             {["Todos", "Disponível", "Reservado", "Vendido"].map(f => (
               <button key={f} onClick={() => setFS(f)} style={{
-                padding: "4px 9px", borderRadius: 4, border: "none", cursor: "pointer",
-                fontSize: 11, fontWeight: 600,
-                background: fs === f ? (SC[f]?.bg || "#3b82f6") : "#1e293b",
-                color: fs === f ? "#fff" : "#64748b",
-              }}>{f}</button>
+                padding: "6px 16px", borderRadius: 7, border: "none", cursor: "pointer",
+                fontSize: 12, fontWeight: 600,
+                background: fs === f ? (SC[f]?.bg || "var(--navy-primary)") : "transparent",
+                color: fs === f ? "#fff" : "var(--text-secondary)",
+                transition: "all 0.2s"
+              }}>
+                {f}
+              </button>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 3, marginLeft: "auto" }}>
+
+          <div style={{ height: 24, width: 1, background: "var(--border-color)", margin: "0 8px" }} />
+
+          <div style={{ display: "flex", gap: 3, marginLeft: "auto", background: "#F1F5F9", padding: 4, borderRadius: 10 }}>
             {["Todas", ...QUADRAS].map(x => (
               <button key={x} onClick={() => setFQ(x)} style={{
-                padding: "4px 8px", borderRadius: 4, border: "none", cursor: "pointer",
-                fontSize: 11, fontWeight: 700,
-                background: fq === x ? "#1F4E5F" : "#1e293b",
-                color: fq === x ? "#C8A24A" : "#64748b",
-              }}>{x === "Todas" ? "Todas" : "Q" + x}</button>
+                padding: "6px 10px", borderRadius: 7, border: "none", cursor: "pointer",
+                fontSize: 11, fontWeight: 600,
+                background: fq === x ? "var(--navy-primary)" : "transparent",
+                color: fq === x ? "#fff" : "var(--text-secondary)",
+                transition: "all 0.2s"
+              }}>
+                {x}
+              </button>
             ))}
           </div>
+
         </div>
       )}
 
@@ -676,6 +710,21 @@ export default function App() {
           </div>
         ))}
       </div>
+      {/* ── BOTTOM NAV (Mobile) ── */}
+      <div className="bottom-nav">
+        {[
+          { k: "vista-geral", l: "Geral", i: "⬛" },
+          { k: "espelho",     l: "Mapa",  i: "🗺️" },
+          { k: "props",       l: "Propostas", i: "📋" },
+          { k: "cfg",         l: "Config", i: "⚙️", show: isAdmin },
+        ].filter(t => t.show !== false).map(t => (
+          <div key={t.k} className={`bottom-nav-item ${tab === t.k ? "active" : ""}`} onClick={() => setTab(t.k)}>
+            <span style={{ fontSize: 20 }}>{t.i}</span>
+            <span>{t.l}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
+

@@ -6,82 +6,90 @@ import { brl0, m2 } from "../utils/format";
 
 export function ListaPage({ filt, isAdmin, sel, setSel, onEditar }) {
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: "14px 16px" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-        <thead>
-          <tr style={{ background: "#0d1220" }}>
-            {["Lote", "Q", "Área", ...(isAdmin ? ["Valor"] : []), "Status", "Comprador", ""].map(h => (
-              <th key={h} style={{
-                padding: "8px 10px", textAlign: "left", color: "#334155",
-                fontWeight: 700, fontSize: 9, textTransform: "uppercase",
-                letterSpacing: "0.5px", borderBottom: "1px solid #1e293b",
-              }}>
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {filt.map((lot, i) => {
-            const s = SC[lot.status] || SC.Disponível;
-            const isVendido = lot.status === "Vendido";
-            const mostrarDetalhes = isAdmin || !isVendido;
-            return (
-              <tr
-                key={lot.id}
-                onClick={() => setSel(lot)}
-                style={{
-                  background: i % 2 === 0 ? "#060a0e" : "#090e16",
-                  cursor: "pointer", borderBottom: "1px solid #1e293b",
-                }}
-              >
-                <td style={{ padding: "8px 10px", fontWeight: 700, color: "#60a5fa" }}>{lot.id}</td>
-                <td style={{ padding: "8px 10px", color: "#64748b" }}>{lot.q}</td>
-                <td style={{ padding: "8px 10px", color: "#64748b" }}>
-                  {mostrarDetalhes ? m2(lot.area) : "—"}
-                </td>
-                {isAdmin && (
-                  <td style={{ padding: "8px 10px", fontWeight: 600, color: "#f1f5f9" }}>
-                    {brl0(lot.valor)}
-                  </td>
-                )}
-                <td style={{ padding: "8px 10px" }}>
-                  <span style={{
-                    background: s.bg + "22", color: s.bg,
-                    padding: "2px 7px", borderRadius: 4, fontSize: 10, fontWeight: 700,
-                  }}>
-                    {lot.status}
-                  </span>
-                </td>
-                <td style={{
-                  padding: "8px 10px", color: "#64748b",
-                  maxWidth: 160, overflow: "hidden",
-                  textOverflow: "ellipsis", whiteSpace: "nowrap",
+    <div style={{ flex: 1, overflow: "auto", padding: "24px" }}>
+      <div className="premium-card" style={{ overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "#F8FAFC", borderBottom: "1px solid var(--border-color)" }}>
+              {["Lote", "Q", "Área", ...(isAdmin ? ["Valor"] : []), "Status", "Comprador", ""].map(h => (
+                <th key={h} style={{
+                  padding: "16px 20px", textAlign: "left", color: "var(--text-secondary)",
+                  fontWeight: 700, fontSize: 10, textTransform: "uppercase",
+                  letterSpacing: "1px"
                 }}>
-                  {mostrarDetalhes
-                    ? (lot.comprador || "—")
-                    : <span style={{ color: "#334155", fontSize: 10, fontStyle: "italic" }}>indisponível</span>
-                  }
-                </td>
-                <td style={{ padding: "8px 10px" }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filt.map((lot, i) => {
+              const s = SC[lot.status] || SC.Disponível;
+              const isVendido = lot.status === "Vendido";
+              const mostrarDetalhes = isAdmin || !isVendido;
+              const isSel = sel?.id === lot.id;
+
+              return (
+                <tr
+                  key={lot.id}
+                  onClick={() => setSel(lot)}
+                  style={{
+                    background: isSel ? "#F1F5F9" : (i % 2 === 0 ? "#FFFFFF" : "#FDFDFD"),
+                    cursor: "pointer", borderBottom: "1px solid var(--border-color)",
+                    transition: "background 0.2s"
+                  }}
+                  onMouseEnter={e => !isSel && (e.currentTarget.style.background = "#F8FAFC")}
+                  onMouseLeave={e => !isSel && (e.currentTarget.style.background = i % 2 === 0 ? "#FFFFFF" : "#FDFDFD")}
+                >
+                  <td style={{ padding: "14px 20px", fontWeight: 800, color: "var(--navy-primary)" }}>{lot.id}</td>
+                  <td style={{ padding: "14px 20px", color: "var(--text-secondary)", fontWeight: 500 }}>{lot.q}</td>
+                  <td style={{ padding: "14px 20px", color: "var(--text-primary)", fontWeight: 500 }}>
+                    {mostrarDetalhes ? m2(lot.area) : "—"}
+                  </td>
                   {isAdmin && (
-                    <button
-                      onClick={e => { e.stopPropagation(); onEditar(lot); }}
-                      style={{
-                        background: "#1e3a5f", border: "none", color: "#60a5fa",
-                        padding: "2px 8px", borderRadius: 4,
-                        cursor: "pointer", fontSize: 10, fontWeight: 600,
-                      }}
-                    >
-                      Edit
-                    </button>
+                    <td style={{ padding: "14px 20px", fontWeight: 700, color: "var(--text-primary)" }}>
+                      {brl0(lot.valor)}
+                    </td>
                   )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                  <td style={{ padding: "14px 20px" }}>
+                    <div style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      background: s.bg + "15", color: s.bg,
+                      padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                    }}>
+                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: s.bg }} />
+                      {lot.status}
+                    </div>
+                  </td>
+                  <td style={{
+                    padding: "14px 20px", color: "var(--text-secondary)",
+                    maxWidth: 160, overflow: "hidden",
+                    textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    fontSize: 12, fontWeight: 500
+                  }}>
+                    {mostrarDetalhes
+                      ? (lot.comprador || "—")
+                      : <span style={{ opacity: 0.4, fontStyle: "italic" }}>Indisponível</span>
+                    }
+                  </td>
+                  <td style={{ padding: "14px 20px", textAlign: "right" }}>
+                    {isAdmin && (
+                      <button
+                        onClick={e => { e.stopPropagation(); onEditar(lot); }}
+                        className="btn-outline-gold"
+                        style={{ padding: "4px 12px", fontSize: 10 }}
+                      >
+                        Editar
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
+
   );
 }
