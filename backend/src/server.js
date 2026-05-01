@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import 'dotenv/config';
 import * as XLSX from 'xlsx';
 import multer from 'multer';
+import { notifyNewAccessRequest, notifyNewReservation, notifyNewProposal } from "./emailService.js";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -91,6 +92,8 @@ app.post("/auth/solicitar-acesso", async (req, res) => {
       }
     });
 
+    notifyNewAccessRequest(newUser);
+
     res.status(201).json({ message: "Solicitação recebida com sucesso", id: newUser.id });
   } catch (error) {
     console.error("Erro ao solicitar acesso:", error);
@@ -138,6 +141,8 @@ app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
     if (result.count === 0) {
       return res.status(409).json({ error: "Conflito: Lote fisgado por outro corretor!" });
     }
+
+    notifyNewReservation(lote, req.user, reservaVenceEm);
 
     res.json({ message: "Reservado com sucesso", reservaVenceEm });
   } catch (error) {
@@ -369,6 +374,8 @@ app.post("/propostas", requireAuth, async (req, res) => {
         status: "Pendente",
       }
     });
+
+    notifyNewProposal(proposta, lote, req.user);
 
     res.status(201).json({
       ...proposta,

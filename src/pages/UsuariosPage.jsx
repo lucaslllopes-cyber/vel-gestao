@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { BASE_URL } from "../utils/api";
 
-export function UsuariosPage({ user }) {
+export function UsuariosPage({ user, onUserUpdated }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -76,6 +76,7 @@ export function UsuariosPage({ user }) {
       if (!res.ok) throw new Error(data.error || "Erro ao atualizar status");
       
       fetchUsers();
+      if (onUserUpdated) onUserUpdated();
     } catch (e) {
       alert(e.message);
     }

@@ -73,6 +73,25 @@ export default function App() {
     com_anuais: true, anuais_qtd: 5, anuais_val: 2000,
   });
 
+  // ── Pending Users (Admin) ──
+  const [pendingUsersCount, setPendingUsersCount] = useState(0);
+
+  const fetchPendingUsersCount = useCallback(async () => {
+    if (!user || user.role?.toLowerCase() !== "admin") return;
+    try {
+      const res = await fetch(`${BASE_URL}/users`, { headers: { Authorization: `Bearer ${user.token}` } });
+      const data = await res.json();
+      const count = data.filter(u => u.status === "PENDENTE").length;
+      setPendingUsersCount(count);
+    } catch (e) {
+      console.error("Erro ao carregar usuários pendentes:", e);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchPendingUsersCount();
+  }, [fetchPendingUsersCount]);
+
   // ── Persistência ──
   useEffect(() => { LS.s(STORAGE_KEYS.LOTS,   lots);   }, [lots]);
   useEffect(() => { LS.s(STORAGE_KEYS.PROPS,  props);  }, [props]);
@@ -316,7 +335,7 @@ export default function App() {
     { k: "props",       l: `📋 Propostas${pendente > 0 ? ` (${pendente})` : ""}` },
     { k: "alertas",     l: `🔔 Alertas${unread > 0 ? ` (${unread})` : ""}`, show: isAdmin },
     { k: "espelho",     l: "🗺️ Espelho" },
-    { k: "usuarios",    l: "👥 Usuários", show: isAdmin },
+    { k: "usuarios",    l: `👥 Usuários${pendingUsersCount > 0 ? ` (${pendingUsersCount})` : ""}`, show: isAdmin },
     { k: "import",      l: "📊 Importação", show: isAdmin },
     { k: "cfg",         l: "⚙️ Config",  show: isAdmin },
   ].filter(t => t.show !== false);
@@ -536,7 +555,7 @@ export default function App() {
         {tab === "cfg" && isAdmin && <ConfigPage cfg={cfg} setCfg={setCfg} />}
 
         {/* Usuários */}
-        {tab === "usuarios" && isAdmin && <UsuariosPage user={user} />}
+        {tab === "usuarios" && isAdmin && <UsuariosPage user={user} onUserUpdated={fetchPendingUsersCount} />}
 
         {/* Importação */}
         {tab === "import" && isAdmin && <ImportacaoPage user={user} onRefreshLotes={fetchLotes} />}
