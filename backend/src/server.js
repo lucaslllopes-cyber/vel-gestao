@@ -6,7 +6,13 @@ import bcrypt from "bcryptjs";
 import 'dotenv/config';
 import * as XLSX from 'xlsx';
 import multer from 'multer';
-import { notifyNewAccessRequest, notifyNewReservation, notifyNewProposal } from "./emailService.js";
+import { 
+  notifyNewAccessRequest, notifyNewReservation, notifyNewProposal,
+  notifyBrokerAccessApproved, notifyBrokerAccessRejected,
+  notifyBrokerReservation, notifyBrokerProposal,
+  notifyBrokerProposalApproved, notifyBrokerProposalRejected,
+  notifyBrokerReservationReleased
+} from "./emailService.js";
 
 const app = express();
 const prisma = new PrismaClient();
@@ -143,6 +149,7 @@ app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
     }
 
     notifyNewReservation(lote, req.user, reservaVenceEm);
+    notifyBrokerReservation(lote, req.user, reservaVenceEm);
 
     res.json({ message: "Reservado com sucesso", reservaVenceEm });
   } catch (error) {
@@ -155,7 +162,10 @@ app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
 app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const lote = await prisma.lote.findUnique({ where: { id } });
+    const lote = await prisma.lote.findUnique({ 
+      where: { id },
+      include: { reservaOwner: true }
+    });
     if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
     if (lote.status !== "Reservado") {
       return res.status(409).json({ error: "Lote não está Reservado" });
@@ -169,6 +179,10 @@ app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
       where: { id },
       data: { status: "Disponível", reservaOwnerId: null, reservaVenceEm: null },
     });
+
+    if (lote.reservaOwner) {
+      notifyBrokerReservationReleased(lote, lote.reservaOwner);
+    }
 
     res.json({ message: `Reserva do Lote ${id} liberada com sucesso` });
   } catch (error) {
@@ -252,7 +266,10 @@ app.post("/lotes/:id/estornar", requireAuth, async (req, res) => {
 app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
   try {
-    const proposta = await prisma.proposta.findUnique({ where: { id: req.params.id } });
+    const proposta = await prisma.proposta.findUnique({ 
+      where: { id: req.params.id },
+      include: { corretor: true, lote: true }
+    });
     if (!proposta) return res.status(404).json({ error: "Proposta não encontrada" });
     if (!["Pendente", "AjusteSolicitado"].includes(proposta.status)) {
       return res.status(409).json({ error: `Proposta com status "${proposta.status}" não pode ser aprovada` });
@@ -274,6 +291,8 @@ app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
       }),
     ]);
 
+    notifyBrokerProposalApproved(propostaAtualizada, proposta.corretor, proposta.lote);
+
     res.json({ proposta: propostaAtualizada });
   } catch (error) {
     console.error(error);
@@ -285,7 +304,10 @@ app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
 app.post("/propostas/:id/recusar", requireAuth, async (req, res) => {
   if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
   try {
-    const proposta = await prisma.proposta.findUnique({ where: { id: req.params.id } });
+    const proposta = await prisma.proposta.findUnique({ 
+      where: { id: req.params.id },
+      include: { corretor: true, lote: true }
+    });
     if (!proposta) return res.status(404).json({ error: "Proposta não encontrada" });
     if (!["Pendente", "AjusteSolicitado"].includes(proposta.status)) {
       return res.status(409).json({ error: `Proposta com status "${proposta.status}" não pode ser recusada` });
@@ -305,6 +327,8 @@ app.post("/propostas/:id/recusar", requireAuth, async (req, res) => {
         },
       }),
     ]);
+
+    notifyBrokerProposalRejected(propostaAtualizada, proposta.corretor, proposta.lote);
 
     res.json({ proposta: propostaAtualizada });
   } catch (error) {
@@ -376,6 +400,7 @@ app.post("/propostas", requireAuth, async (req, res) => {
     });
 
     notifyNewProposal(proposta, lote, req.user);
+    notifyBrokerProposal(proposta, lote, req.user);
 
     res.status(201).json({
       ...proposta,
@@ -474,6 +499,9 @@ app.patch("/users/:id/status", requireAuth, async (req, res) => {
       where: { id },
       data: { status }
     });
+
+    if (status === "ATIVO") notifyBrokerAccessApproved(user);
+    if (status === "RECUSADO") notifyBrokerAccessRejected(user);
 
     res.json({ message: "Status atualizado com sucesso", user: { id: user.id, status: user.status } });
   } catch (error) {

@@ -122,3 +122,141 @@ export const notifyNewReservation = (lote, user, venceEm) => {
   `;
   sendMailSafe({ subject, html }).catch(() => {});
 };
+
+// ==========================================
+// NOTIFICAÇÕES PARA CORRETORES
+// ==========================================
+
+export const notifyBrokerAccessApproved = (user) => {
+  const subject = `[Gestão VEL] Acesso aprovado`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #16a34a;">Olá, ${user.nome}!</h2>
+      <p>O seu acesso ao sistema Gestão VEL foi <strong>aprovado</strong>.</p>
+      <p>Você já pode acessar a plataforma utilizando o seu login/e-mail e a senha cadastrada.</p>
+      <p style="margin-top: 20px;">
+        <a href="${appUrl}/" style="background: #16a34a; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
+      </p>
+    </div>
+  `;
+  sendMailSafe({ subject, html, to: user.login }).catch(() => {});
+};
+
+export const notifyBrokerAccessRejected = (user) => {
+  const subject = `[Gestão VEL] Solicitação de acesso analisada`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #475569;">Olá, ${user.nome}.</h2>
+      <p>Sua solicitação de acesso ao sistema Gestão VEL foi analisada, mas <strong>não foi aprovada</strong> neste momento.</p>
+      <p>Caso tenha alguma dúvida ou acredite ser um engano, por favor, entre em contato diretamente com a gestão.</p>
+    </div>
+  `;
+  sendMailSafe({ subject, html, to: user.login }).catch(() => {});
+};
+
+export const notifyBrokerReservation = (lote, user, venceEm) => {
+  const subject = `[Gestão VEL] Reserva criada - Lote ${lote.id}`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #d97706;">Reserva Confirmada</h2>
+      <p>Você reservou com sucesso um lote no sistema.</p>
+      <ul style="background: #fffbeb; padding: 15px 30px; border-radius: 8px;">
+        <li><strong>Lote:</strong> ${lote.id}</li>
+        <li><strong>Quadra:</strong> ${lote.q}</li>
+        <li><strong>Número:</strong> ${lote.n}</li>
+        <li><strong>Válida até:</strong> ${new Date(venceEm).toLocaleString('pt-BR')}</li>
+      </ul>
+      <p style="margin-top: 20px;">
+        <a href="${appUrl}/" style="background: #d97706; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
+      </p>
+    </div>
+  `;
+  sendMailSafe({ subject, html, to: user.login }).catch(() => {});
+};
+
+export const notifyBrokerProposal = (proposta, lote, user) => {
+  const subject = `[Gestão VEL] Proposta enviada - Lote ${lote.id}`;
+  let detailsFin = "";
+  try {
+    const fin = typeof proposta.payloadFinanceiro === "string" ? JSON.parse(proposta.payloadFinanceiro) : proposta.payloadFinanceiro;
+    detailsFin = `<li><strong>Valor Estimado:</strong> R$ ${fin.totalEstimado?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</li>`;
+  } catch(e) {}
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #1e3a8a;">Proposta Enviada com Sucesso</h2>
+      <p>Sua proposta foi enviada para a análise da gestão.</p>
+      <ul style="background: #f8fafc; padding: 15px 30px; border-radius: 8px;">
+        <li><strong>Cliente:</strong> ${proposta.nomeCliente}</li>
+        <li><strong>Lote:</strong> ${lote.id}</li>
+        <li><strong>Quadra:</strong> ${lote.q}</li>
+        <li><strong>Número:</strong> ${lote.n}</li>
+        ${detailsFin}
+        <li><strong>Status:</strong> <span style="color: #ca8a04; font-weight: bold;">Pendente</span></li>
+      </ul>
+      <p style="margin-top: 20px;">
+        <a href="${appUrl}/" style="background: #2563eb; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acompanhar no Sistema</a>
+      </p>
+    </div>
+  `;
+  sendMailSafe({ subject, html, to: user.login }).catch(() => {});
+};
+
+export const notifyBrokerProposalApproved = (proposta, corretor, lote) => {
+  const subject = `[Gestão VEL] Proposta aprovada - Lote ${lote.id}`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #16a34a;">Boas notícias, ${corretor.nome}!</h2>
+      <p>Sua proposta para o cliente <strong>${proposta.nomeCliente}</strong> foi <strong>APROVADA</strong> pela gestão!</p>
+      <ul style="background: #f0fdf4; padding: 15px 30px; border-radius: 8px;">
+        <li><strong>Lote:</strong> ${lote.id}</li>
+        <li><strong>Quadra:</strong> ${lote.q}</li>
+        <li><strong>Número:</strong> ${lote.n}</li>
+      </ul>
+      <p>Acesse o sistema para consultar os próximos passos ou entre em contato com a gestão para o fechamento do contrato.</p>
+      <p style="margin-top: 20px;">
+        <a href="${appUrl}/" style="background: #16a34a; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
+      </p>
+    </div>
+  `;
+  sendMailSafe({ subject, html, to: corretor.login }).catch(() => {});
+};
+
+export const notifyBrokerProposalRejected = (proposta, corretor, lote) => {
+  const subject = `[Gestão VEL] Proposta recusada - Lote ${lote.id}`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #dc2626;">Olá, ${corretor.nome}.</h2>
+      <p>Sua proposta para o cliente <strong>${proposta.nomeCliente}</strong> foi <strong>RECUSADA</strong> pela gestão.</p>
+      <ul style="background: #fef2f2; padding: 15px 30px; border-radius: 8px;">
+        <li><strong>Lote:</strong> ${lote.id}</li>
+        <li><strong>Quadra:</strong> ${lote.q}</li>
+        <li><strong>Número:</strong> ${lote.n}</li>
+      </ul>
+      <p>Por favor, consulte a gestão caso precise ajustar os valores ou as condições de pagamento e tentar novamente.</p>
+      <p style="margin-top: 20px;">
+        <a href="${appUrl}/" style="background: #dc2626; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
+      </p>
+    </div>
+  `;
+  sendMailSafe({ subject, html, to: corretor.login }).catch(() => {});
+};
+
+export const notifyBrokerReservationReleased = (lote, corretor) => {
+  const subject = `[Gestão VEL] Reserva liberada - Lote ${lote.id}`;
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+      <h2 style="color: #475569;">Reserva Liberada ou Cancelada</h2>
+      <p>Olá, ${corretor.nome}. A sua reserva para o lote abaixo foi liberada/cancelada e o lote encontra-se disponível novamente no sistema.</p>
+      <ul style="background: #f8fafc; padding: 15px 30px; border-radius: 8px;">
+        <li><strong>Lote:</strong> ${lote.id}</li>
+        <li><strong>Quadra:</strong> ${lote.q}</li>
+        <li><strong>Número:</strong> ${lote.n}</li>
+      </ul>
+      <p style="margin-top: 20px;">
+        <a href="${appUrl}/" style="background: #475569; color: #fff; padding: 10px 15px; text-decoration: none; border-radius: 5px;">Acessar o Sistema</a>
+      </p>
+    </div>
+  `;
+  sendMailSafe({ subject, html, to: corretor.login }).catch(() => {});
+};
