@@ -70,6 +70,26 @@ app.post("/auth/login", async (req, res) => {
   });
 });
 
+// GET /auth/me — verifica se o token é válido e retorna dados do usuário
+app.get("/auth/me", requireAuth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { id: true, nome: true, login: true, role: true, status: true }
+    });
+    
+    if (!user || user.status !== "ATIVO") {
+      return res.status(401).json({ error: "Usuário não encontrado ou inativo" });
+    }
+    
+    res.json({ 
+      user: { ...user, role: user.role.toLowerCase() } 
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Erro ao verificar sessão" });
+  }
+});
+
 // POST /auth/solicitar-acesso
 app.post("/auth/solicitar-acesso", async (req, res) => {
   try {

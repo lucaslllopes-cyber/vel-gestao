@@ -12,40 +12,41 @@ export function ConfigPage({ cfg, setCfg }) {
   ];
 
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", marginBottom: 16 }}>
-        ⚙️ Configurações Comerciais
+    <div style={{ flex: 1, overflow: "auto", padding: "32px", background: "var(--off-white)" }}>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ color: "var(--navy-primary)", fontSize: 24, fontWeight: 800 }}>⚙️ Configurações do Sistema</h2>
+        <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>Ajuste os parâmetros comerciais globais do empreendimento.</p>
       </div>
-      <div style={{
-        maxWidth: 460, background: "#090e16",
-        border: "1px solid #1e293b", borderRadius: 12, padding: 20,
+
+      <div className="premium-card" style={{
+        maxWidth: 500, background: "white", padding: "32px", 
       }}>
         {campos.map(({ l, k, min, max, step, note }) => (
-          <div key={k} style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4, fontWeight: 600 }}>{l}</div>
+          <div key={k} style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 6, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>{l}</div>
             <input
               type="number"
               value={cfg[k]}
               min={min} max={max} step={step}
               onChange={e => setCfg(c => ({ ...c, [k]: parseFloat(e.target.value) || 0 }))}
               style={{
-                width: "100%", background: "#141e2e", border: "1px solid #1e3a5f",
-                borderRadius: 7, padding: "8px 11px", color: "#e2e8f0",
-                fontSize: 13, outline: "none", boxSizing: "border-box",
+                width: "100%", background: "#F8FAFC", border: "1px solid var(--border-color)",
+                borderRadius: 8, padding: "10px 14px", color: "var(--text-primary)",
+                fontSize: 14, outline: "none", boxSizing: "border-box", fontWeight: 600
               }}
             />
-            <div style={{ fontSize: 9, color: "#334155", marginTop: 2 }}>{note}</div>
+            <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 6, opacity: 0.8 }}>{note}</div>
           </div>
         ))}
 
         {/* Tabelas disponíveis */}
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 6, fontWeight: 600 }}>
-            Tabelas disponíveis para corretores
+        <div style={{ marginBottom: 20, paddingTop: 12, borderTop: "1px solid var(--border-color)" }}>
+          <div style={{ fontSize: 12, color: "var(--text-secondary)", marginBottom: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            Tabelas Ativas
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 20 }}>
             {["SACOC", "PRICE"].map(t => (
-              <label key={t} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
+              <label key={t} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                 <input
                   type="checkbox"
                   checked={cfg.tabelas.includes(t)}
@@ -55,21 +56,27 @@ export function ConfigPage({ cfg, setCfg }) {
                       : cfg.tabelas.filter(x => x !== t);
                     if (arr.length > 0) setCfg(c => ({ ...c, tabelas: arr }));
                   }}
-                  style={{ accentColor: "#16a34a" }}
+                  style={{ width: 18, height: 18, accentColor: "var(--navy-primary)", cursor: "pointer" }}
                 />
-                <span style={{ fontSize: 13, color: "#e2e8f0", fontWeight: 600 }}>{t}</span>
+                <span style={{ fontSize: 14, color: "var(--navy-primary)", fontWeight: 700 }}>{t}</span>
               </label>
             ))}
           </div>
-          <div style={{ fontSize: 9, color: "#334155", marginTop: 3 }}>
-            Se desmarcar, corretores não veem essa opção
+          <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 8, opacity: 0.8 }}>
+            Habilite ou desabilite métodos de financiamento para os corretores.
           </div>
         </div>
 
-        <div style={{ padding: 10, background: "#141e2e", borderRadius: 7, fontSize: 11, color: "#64748b" }}>
-          💡 Alterações aplicadas imediatamente para todos os corretores.
+        <div style={{ 
+          marginTop: 12, padding: "12px 16px", background: "#F8FAFC", 
+          borderRadius: 8, fontSize: 12, color: "var(--text-secondary)",
+          display: "flex", alignItems: "center", gap: 10, border: "1px solid var(--border-color)"
+        }}>
+          <span style={{ fontSize: 16 }}>💡</span>
+          <span>Alterações aplicadas imediatamente para toda a rede de corretores.</span>
         </div>
       </div>
     </div>
+
   );
 }

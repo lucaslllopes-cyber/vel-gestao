@@ -29,9 +29,45 @@ import { ImportacaoPage } from "./pages/ImportacaoPage";
 // ─────────────────────────────────────────────────────────────────
 export default function App() {
   // ── Estado global ──
-  const [user, setUser]   = useState(null);
+  const [user, setUser] = useState(() => LS.g(STORAGE_KEYS.USER, null));
+  const [isRestoring, setIsRestoring] = useState(!!LS.g(STORAGE_KEYS.USER, null));
   const [lots, setLots] = useState([]);
   const [isFetchingDb, setIsFetchingDb] = useState(true);
+
+  // ── Restauração de Sessão ──
+  useEffect(() => {
+    const restoreSession = async () => {
+      const stored = LS.g(STORAGE_KEYS.USER, null);
+      if (!stored?.token) {
+        setIsRestoring(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${BASE_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${stored.token}` }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          // Atualiza dados do usuário mantendo o token
+          const updatedUser = { ...data.user, token: stored.token };
+          setUser(updatedUser);
+          LS.s(STORAGE_KEYS.USER, updatedUser);
+        } else {
+          // Token expirado ou inválido
+          setUser(null);
+          localStorage.removeItem(STORAGE_KEYS.USER);
+        }
+      } catch (e) {
+        console.error("Erro ao restaurar sessão:", e);
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
 
   const fetchLotes = useCallback(async () => {
     try {
@@ -93,6 +129,7 @@ export default function App() {
   }, [fetchPendingUsersCount]);
 
   // ── Persistência ──
+  useEffect(() => { LS.s(STORAGE_KEYS.USER,   user);   }, [user]);
   useEffect(() => { LS.s(STORAGE_KEYS.LOTS,   lots);   }, [lots]);
   useEffect(() => { LS.s(STORAGE_KEYS.PROPS,  props);  }, [props]);
   useEffect(() => { LS.s(STORAGE_KEYS.NOTIFS, notifs); }, [notifs]);
@@ -346,14 +383,33 @@ export default function App() {
     fontSize: 13, outline: "none", ...style,
   });
 
+  // ── RENDER: RESTORING SESSION ──
+  if (isRestoring) {
+    return (
+      <div style={{ 
+        background: "var(--navy-primary)", height: "100vh", 
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", 
+        color: "white", fontFamily: "sans-serif" 
+      }}>
+        <img src="/logo.png" alt="Terra Vista" style={{ height: 48, marginBottom: 24, filter: "brightness(0) invert(1)" }} />
+        <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.8 }}>Restaurando sessão...</div>
+      </div>
+    );
+  }
+
   // ── RENDER: LOGIN ──
   if (!user) return <LoginPage onLogin={setUser} />;
 
   // ── RENDER: APP ──
   if (isFetchingDb) {
     return (
-      <div style={{ background: "#060a0e", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center", color: "#64748b", fontFamily: "sans-serif" }}>
-        Conectando ao Banco de Dados Base (Terra Vista API)...
+      <div style={{ 
+        background: "var(--navy-primary)", height: "100vh", 
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", 
+        color: "white", fontFamily: "sans-serif" 
+      }}>
+        <img src="/logo.png" alt="Terra Vista" style={{ height: 48, marginBottom: 24, filter: "brightness(0) invert(1)" }} />
+        <div style={{ fontSize: 14, fontWeight: 600, opacity: 0.8 }}>Conectando ao Banco de Dados...</div>
       </div>
     );
   }
@@ -446,7 +502,12 @@ export default function App() {
             ☰
           </button>
           
-          <button onClick={() => { setUser(null); setSel(null); setTab("espelho"); }}
+          <button onClick={() => { 
+            setUser(null); 
+            setSel(null); 
+            setTab("espelho"); 
+            localStorage.removeItem(STORAGE_KEYS.USER);
+          }}
             className="btn-outline-gold"
             style={{ padding: "6px 12px", fontSize: 11, border: "1px solid rgba(200, 162, 74, 0.4)", color: "white" }}>
             Sair

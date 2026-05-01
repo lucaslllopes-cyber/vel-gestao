@@ -125,6 +125,7 @@ export function LoginPage({ onLogin }) {
           value={lf.u}
           onChange={v => setLF(f => ({ ...f, u: v }))}
           placeholder="Usuário"
+          autoComplete="username"
         />
         <div style={{ marginBottom: 12 }}>
           <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4,
@@ -133,6 +134,7 @@ export function LoginPage({ onLogin }) {
           </div>
           <input
             type="password"
+            autoComplete="current-password"
             value={lf.p}
             onChange={e => setLF(f => ({ ...f, p: e.target.value }))}
             onKeyDown={e => e.key === "Enter" && doLogin()}

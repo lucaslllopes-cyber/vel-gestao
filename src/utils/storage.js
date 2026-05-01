@@ -22,6 +22,7 @@ export const LS = {
 
 // Chaves usadas no app
 export const STORAGE_KEYS = {
+  USER:   "tv3_user",
   LOTS:   "tv3_lots",
   PROPS:  "tv3_props",
   NOTIFS: "tv3_nots",

@@ -2,7 +2,7 @@
 // FIELD — input reutilizável com label e nota
 // ─────────────────────────────────────────────────────────────────
 
-export function Field({ label, value, onChange, type = "text", placeholder = "", note = "" }) {
+export function Field({ label, value, onChange, type = "text", placeholder = "", note = "", ...rest }) {
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ fontSize: 10, color: "#64748b", marginBottom: 4,
@@ -14,6 +14,7 @@ export function Field({ label, value, onChange, type = "text", placeholder = "",
         value={value}
         placeholder={placeholder}
         onChange={e => onChange(type === "number" ? parseFloat(e.target.value) || 0 : e.target.value)}
+        {...rest}
         style={{ width: "100%", background: "#f8fafc", border: "1px solid var(--border-color)",
           borderRadius: 8, padding: "11px 13px", color: "var(--text-primary)", fontSize: 14,
           outline: "none", boxSizing: "border-box", transition: "border-color 0.2s" }}

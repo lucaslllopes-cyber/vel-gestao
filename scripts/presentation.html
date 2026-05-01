@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apresentação Sistema Gestão VEL</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap');
+
+        :root {
+            --azul-petroleo: #1F4E5F;
+            --dourado: #C8A24A;
+            --off-white: #F8F9FA;
+            --texto: #334155;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'DM Sans', sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        .slide {
+            width: 1000px;
+            height: 700px;
+            background-color: var(--off-white);
+            margin: 20px auto;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            page-break-after: always;
+        }
+
+        .header {
+            background-color: var(--azul-petroleo);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .logo {
+            height: 40px;
+        }
+
+        .content {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            color: var(--azul-petroleo);
+            font-size: 32px;
+            font-weight: 800;
+            margin: 0 0 20px 0;
+            border-left: 5px solid var(--dourado);
+            padding-left: 15px;
+        }
+
+        p {
+            color: var(--texto);
+            font-size: 18px;
+            line-height: 1.6;
+            margin: 0 0 20px 0;
+        }
+
+        .print-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #eee;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #ddd;
+        }
+
+        .print-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .footer {
+            padding: 15px 40px;
+            font-size: 12px;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        /* Capa */
+        .capa {
+            background: var(--azul-petroleo);
+            color: white;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .capa h1 {
+            border: none;
+            padding: 0;
+            color: white;
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+
+        .capa .subtitle {
+            color: var(--dourado);
+            font-size: 20px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            font-weight: 700;
+        }
+
+        .capa .logo-grande {
+            height: 120px;
+            margin-bottom: 40px;
+        }
+
+        /* Grid layouts */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            flex: 1;
+        }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-list li {
+            margin-bottom: 15px;
+            padding-left: 35px;
+            position: relative;
+            font-size: 18px;
+            color: var(--texto);
+        }
+
+        .step-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 4px;
+            width: 24px;
+            height: 24px;
+            background: var(--dourado);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .step-list li:nth-child(1)::before { content: '1'; }
+        .step-list li:nth-child(2)::before { content: '2'; }
+        .step-list li:nth-child(3)::before { content: '3'; }
+        .step-list li:nth-child(4)::before { content: '4'; }
+
+        @media print {
+            body { background: none; }
+            .slide { margin: 0; box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Slide 1: Capa -->
+    <div class="slide capa">
+        <img src="LOGO_PATH" alt="Logo" class="logo-grande">
+        <h1>Sistema Gestão VEL</h1>
+        <div style="font-size: 18px; margin-top: -5px; margin-bottom: 20px; font-weight: 500; opacity: 0.9;">
+            Sistema de Gestão de Vendas do Residencial Terra Vista
+        </div>
+        <div class="subtitle">Guia do Corretor</div>
+        <div style="margin-top: 60px; font-weight: 500;">Residencial Terra Vista · Caldas MG</div>
+    </div>
+
+    <!-- Slide 2: O que é -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>O que é o sistema?</h1>
+            <p>O Sistema Gestão VEL é a plataforma utilizada para gerenciar as vendas do Residencial Terra Vista. Um sistema simples para visualizar, consultar e vender os lotes em tempo real.</p>
+            <div class="grid-2">
+                <div class="print-container">
+                    <img src="PRINT_02" alt="Sistema">
+                </div>
+                <div>
+                    <ul class="step-list">
+                        <li><b>Transparência:</b> Veja quais lotes estão disponíveis ou reservados na hora.</li>
+                        <li><b>Agilidade:</b> Realize simulações e envie propostas pelo próprio celular.</li>
+                        <li><b>Segurança:</b> Garantia de reserva por 48 horas no sistema.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 02/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 3: Como acessar -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>Como acessar</h1>
+            <p>Acesse o Sistema Gestão VEL através do endereço oficial. Use suas credenciais fornecidas pela gestão ou solicite acesso diretamente na tela inicial.</p>
+            <div class="grid-2">
+                <div class="print-container">
+                    <img src="PRINT_01" alt="Login">
+                </div>
+                <div>
+                    <ul class="step-list">
+                        <li>Insira seu usuário (e-mail) e senha.</li>
+                        <li>Se ainda não tiver acesso, clique em <b>"Solicitar acesso"</b>.</li>
+                        <li>Após o login, você verá o <b>Espelho de Vendas</b> (mapa).</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 03/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 4: Tela do Espelho -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>Tela do Espelho</h1>
+            <p>O mapa interativo mostra a planta real do Residencial Terra Vista. As cores indicam se o lote está livre ou ocupado.</p>
+            <div class="print-container">
+                <img src="PRINT_02" alt="Espelho">
+            </div>
+            <div style="display: flex; gap: 20px; margin-top: 20px; justify-content: center;">
+                <span style="display: flex; align-items: center; gap: 5px;"><div style="width: 12px; height: 12px; background: #4ADE80; border-radius: 2px;"></div> Disponível</span>
+                <span style="display: flex; align-items: center; gap: 5px;"><div style="width: 12px; height: 12px; background: #FBBF24; border-radius: 2px;"></div> Reservado</span>
+                <span style="display: flex; align-items: center; gap: 5px;"><div style="width: 12px; height: 12px; background: #F87171; border-radius: 2px;"></div> Vendido</span>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 04/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 5: Consultar Lote -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>Como consultar um lote</h1>
+            <p>Basta clicar em qualquer lote no mapa para abrir o painel lateral. Você terá acesso imediato à área, valor e tabela de preços.</p>
+            <div class="grid-2">
+                <div class="print-container">
+                    <img src="PRINT_03" alt="Lote Selecionado">
+                </div>
+                <div class="print-container">
+                    <img src="PRINT_04" alt="Painel Lote">
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 05/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 6: Filtros -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>Como usar filtros</h1>
+            <p>Para facilitar sua busca, use a barra superior para filtrar apenas lotes "Disponíveis" ou ver uma quadra específica.</p>
+            <div class="grid-2">
+                <div class="print-container">
+                    <img src="PRINT_05" alt="Filtro Status">
+                </div>
+                <div class="print-container">
+                    <img src="PRINT_06" alt="Filtro Quadra">
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 06/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 7: Reservas -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>Simulação e Proposta</h1>
+            <p>Dentro do painel do lote, você pode simular condições de pagamento e enviar a proposta do cliente diretamente pelo sistema.</p>
+            <div class="grid-2">
+                <div class="print-container" style="background: white; padding: 20px;">
+                    <img src="PRINT_04" alt="Reservar">
+                </div>
+                <div style="display: flex; flex-direction: column; justify-content: center;">
+                    <ul class="step-list">
+                        <li>Clique em <b>"Simular"</b> para ver planos de parcelamento.</li>
+                        <li>Preencha os dados do cliente e envie a proposta.</li>
+                        <li><b>Reserva Automática:</b> O lote fica bloqueado para você na hora.</li>
+                        <li>A reserva tem validade de <b>48 horas</b> no sistema.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 07/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 8: Celular -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>Uso no celular</h1>
+            <p>O sistema funciona perfeitamente em smartphones. Ideal para consultas rápidas durante visitas ao empreendimento.</p>
+            <div class="grid-2">
+                <div class="print-container">
+                    <img src="PRINT_07" alt="Mobile 1">
+                </div>
+                <div class="print-container">
+                    <img src="PRINT_08" alt="Mobile 2">
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 08/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 9: Boas Práticas -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content">
+            <h1>Boas práticas</h1>
+            <p>Dicas para vender mais e melhor:</p>
+            <ul class="step-list">
+                <li><b>Confirme a disponibilidade:</b> Olhe o mapa antes de iniciar qualquer negociação.</li>
+                <li><b>Reserva Consciente:</b> Reserve apenas lotes com interesse real do cliente.</li>
+                <li><b>Cadastro Ágil:</b> Preencha os dados corretamente para acelerar a aprovação da proposta.</li>
+                <li><b>Menu Propostas:</b> Acompanhe em tempo real se sua venda foi aprovada pela gestão.</li>
+            </ul>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 09/10</span>
+        </div>
+    </div>
+
+    <!-- Slide 10: Suporte -->
+    <div class="slide">
+        <div class="header">
+            <img src="LOGO_PATH" alt="Logo" class="logo">
+            <span>Guia do Corretor</span>
+        </div>
+        <div class="content" style="text-align: center; justify-content: center;">
+            <h1 style="border: none; padding: 0; margin-bottom: 40px;">Suporte e Contato</h1>
+            <p>Dúvidas sobre o sistema ou dificuldades de acesso?</p>
+            <div style="background: white; border: 1px solid #ddd; border-radius: 12px; padding: 30px; display: inline-block; margin-top: 20px;">
+                <div style="font-size: 24px; font-weight: 700; color: var(--azul-petroleo); margin-bottom: 10px;">Lucas — Gestão VEL</div>
+                <div style="font-size: 18px; color: var(--texto); margin-bottom: 5px;">WhatsApp: (35) 98813-3347</div>
+                <div style="font-size: 18px; color: var(--texto);">E-mail: lucaslllopes@gmail.com</div>
+            </div>
+            <p style="margin-top: 60px; font-size: 14px; color: #94a3b8;">Sistema desenvolvido pela VEL Gestão Comercial</p>
+        </div>
+        <div class="footer">
+            <span>Residencial Terra Vista</span>
+            <span>Página 10/10</span>
+        </div>
+    </div>
+
+</body>
+</html>
