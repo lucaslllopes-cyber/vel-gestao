@@ -84,8 +84,11 @@ export const notifyNewProposal = (proposta, lote, user) => {
       <ul style="background: #f0fdf4; padding: 15px 30px; border-radius: 8px;">
         <li><strong>Corretor:</strong> ${user.nome} (${user.login})</li>
         <li><strong>Cliente:</strong> ${proposta.nomeCliente}</li>
-        <li><strong>Contato:</strong> ${proposta.telefoneCliente || "N/A"} / ${proposta.emailCliente || "N/A"}</li>
-        <li><strong>Lote/Quadra:</strong> Lote ${lote.n} | Quadra ${lote.q} (${lote.id})</li>
+        <li><strong>E-mail do cliente:</strong> ${proposta.emailCliente || "N/A"}</li>
+        <li><strong>Telefone do cliente:</strong> ${proposta.telefoneCliente || "N/A"}</li>
+        <li><strong>Lote:</strong> ${lote.id}</li>
+        <li><strong>Quadra:</strong> ${lote.q}</li>
+        <li><strong>Número:</strong> ${lote.n}</li>
         <li><strong>Valor Tabela:</strong> R$ ${lote.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</li>
         ${detailsFin}
         <li><strong>Data/Hora:</strong> ${new Date().toLocaleString('pt-BR')}</li>
@@ -106,7 +109,9 @@ export const notifyNewReservation = (lote, user, venceEm) => {
       <p>Um lote foi reservado no sistema.</p>
       <ul style="background: #fffbeb; padding: 15px 30px; border-radius: 8px;">
         <li><strong>Corretor:</strong> ${user.nome} (${user.login})</li>
-        <li><strong>Lote/Quadra:</strong> Lote ${lote.n} | Quadra ${lote.q} (${lote.id})</li>
+        <li><strong>Lote:</strong> ${lote.id}</li>
+        <li><strong>Quadra:</strong> ${lote.q}</li>
+        <li><strong>Número:</strong> ${lote.n}</li>
         <li><strong>Reserva em:</strong> ${new Date().toLocaleString('pt-BR')}</li>
         <li><strong>Válida até:</strong> ${new Date(venceEm).toLocaleString('pt-BR')}</li>
       </ul>
