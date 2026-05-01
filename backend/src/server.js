@@ -146,17 +146,18 @@ app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
   }
 });
 
-// POST /lotes/:id/liberar  (admin only)
+// POST /lotes/:id/liberar  (admin ou dono da reserva)
 app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res.status(403).json({ error: "Apenas administradores podem liberar reservas" });
-  }
   try {
     const { id } = req.params;
     const lote = await prisma.lote.findUnique({ where: { id } });
     if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
     if (lote.status !== "Reservado") {
       return res.status(409).json({ error: "Lote não está Reservado" });
+    }
+
+    if (req.user.role !== "admin" && lote.reservaOwnerId !== req.user.id) {
+      return res.status(403).json({ error: "Você só pode liberar suas próprias reservas" });
     }
 
     await prisma.lote.update({

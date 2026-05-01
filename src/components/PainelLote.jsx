@@ -162,7 +162,7 @@ export function PainelLote({
           </button>
         )}
 
-        {lot.status === "Reservado" && lot.reservaOwnerId !== user.id && (
+        {lot.status === "Reservado" && lot.reservaOwnerId !== user.id && !isAdmin && (
           <>
             <button 
               onClick={onSimular} 
@@ -240,14 +240,17 @@ export function PainelLote({
               }}>
               🔄 Renovar (+{cfg.reserva_horas}h)
             </button>
-
-            <button onClick={() => onLiberar(limparReserva(lot))} style={{
-              background: "#061a0c", border: "1px solid #16a34a44", color: "#16a34a",
-              padding: "8px 0", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 12,
-            }}>
-              ↩️ Liberar reserva
-            </button>
           </>
+        )}
+
+        {lot.status === "Reservado" && (isAdmin || lot.reservaOwnerId === user.id) && (
+          <button onClick={() => onLiberar(limparReserva(lot))} style={{
+            background: "#061a0c", border: "1px solid #16a34a44", color: "#16a34a",
+            padding: "8px 0", borderRadius: 7, cursor: "pointer", fontWeight: 600, fontSize: 12,
+            marginTop: 4
+          }}>
+            ↩️ {isAdmin && lot.reservaOwnerId !== user.id ? "Liberar reserva" : "Liberar minha reserva"}
+          </button>
         )}
 
         {isAdmin && lot.status === "Vendido" && (
