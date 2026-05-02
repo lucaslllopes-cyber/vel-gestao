@@ -3,7 +3,6 @@
 // ─────────────────────────────────────────────────────────────────
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { BASE_URL } from "./utils/api";
-import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import { LOTS_SEED, DEFAULT_CFG, QUADRAS, SC } from "./data/constants";
 import { LS, STORAGE_KEYS }                    from "./utils/storage";
@@ -131,12 +130,6 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [ef, setEF]             = useState({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-
-  // ── PWA Update Logic ──
-  const {
-    needUpdate: [needUpdate, setNeedUpdate],
-    updateServiceWorker,
-  } = useRegisterSW();
 
   // ── Simulador ──
   const [sim, setSim] = useState({
@@ -890,28 +883,6 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ── PWA Reload Prompt ── */}
-      {needUpdate && (
-        <div style={{
-          position: "fixed", bottom: "calc(80px + env(safe-area-inset-bottom, 0px))", left: 16, right: 16,
-          background: "var(--gold-primary)", color: "var(--navy-primary)",
-          padding: "16px", borderRadius: 12, zIndex: 2000,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.3)", animation: "slideUp 0.3s ease"
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>Nova versão disponível!</div>
-          <button 
-            onClick={() => updateServiceWorker(true)}
-            style={{ 
-              background: "var(--navy-primary)", color: "white", border: "none", 
-              padding: "8px 16px", borderRadius: 6, fontWeight: 800, fontSize: 12, cursor: "pointer"
-            }}
-          >
-            Atualizar Agora
-          </button>
         </div>
       )}
 
