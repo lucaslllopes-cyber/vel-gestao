@@ -212,6 +212,16 @@ app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
     notifyNewReservation(lote, req.user, reservaVenceEm);
     notifyBrokerReservation(lote, req.user, reservaVenceEm);
 
+    // AuditLog
+    await prisma.auditLog.create({
+      data: {
+        loteId: lote.id,
+        userId: req.user.id,
+        evento: "RESERVA_CRIADA",
+        payloadNovo: JSON.stringify({ status: "Reservado", reservaOwnerId: req.user.id, reservaVenceEm })
+      }
+    });
+
     res.json({ message: "Reservado com sucesso", reservaVenceEm });
   } catch (error) {
     console.error(error);
@@ -244,6 +254,17 @@ app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
     if (lote.reservaOwner) {
       notifyBrokerReservationReleased(lote, lote.reservaOwner);
     }
+
+    // AuditLog
+    await prisma.auditLog.create({
+      data: {
+        loteId: id,
+        userId: req.user.id,
+        evento: "RESERVA_LIBERADA",
+        payloadAnterior: JSON.stringify({ status: lote.status, reservaOwnerId: lote.reservaOwnerId }),
+        payloadNovo: JSON.stringify({ status: "Disponível", reservaOwnerId: null })
+      }
+    });
 
     res.json({ message: `Reserva do Lote ${id} liberada com sucesso` });
   } catch (error) {
@@ -321,6 +342,72 @@ app.post("/lotes/:id/estornar", requireAuth, async (req, res) => {
   }
 });
 
+// PATCH /lotes/:id — Edição Manual (Admin Only)
+app.patch("/lotes/:id", requireAuth, async (req, res) => {
+  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  
+  try {
+    const { id } = req.params;
+    const { status, comprador, valor, situacaoLegal } = req.body;
+
+    const lote = await prisma.lote.findUnique({ where: { id } });
+    if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
+
+    // Validação de status permitido
+    const statusPermitidos = ["Disponível", "Reservado", "Vendido"];
+    if (status && !statusPermitidos.includes(status)) {
+      return res.status(400).json({ error: "Status inválido. Use Disponível, Reservado ou Vendido." });
+    }
+
+    const payloadAnterior = JSON.stringify({
+      status: lote.status,
+      comprador: lote.comprador,
+      valor: lote.valor,
+      situacaoLegal: lote.situacaoLegal
+    });
+
+    const dataUpdate = {};
+    if (status !== undefined) dataUpdate.status = status;
+    if (comprador !== undefined) dataUpdate.comprador = comprador;
+    if (valor !== undefined) dataUpdate.valor = parseFloat(valor);
+    if (situacaoLegal !== undefined) dataUpdate.situacaoLegal = situacaoLegal;
+
+    // Se mudar para Disponível, limpa reserva
+    if (status === "Disponível") {
+      dataUpdate.reservaOwnerId = null;
+      dataUpdate.reservaVenceEm = null;
+    }
+
+    const loteAtualizado = await prisma.lote.update({
+      where: { id },
+      data: dataUpdate
+    });
+
+    const payloadNovo = JSON.stringify({
+      status: loteAtualizado.status,
+      comprador: loteAtualizado.comprador,
+      valor: loteAtualizado.valor,
+      situacaoLegal: loteAtualizado.situacaoLegal
+    });
+
+    // AuditLog
+    await prisma.auditLog.create({
+      data: {
+        loteId: id,
+        userId: req.user.id,
+        evento: "EDICAO_MANUAL_LOTE",
+        payloadAnterior,
+        payloadNovo
+      }
+    });
+
+    res.json(loteAtualizado);
+  } catch (error) {
+    console.error("Erro na edição manual:", error);
+    res.status(500).json({ error: "Erro interno no servidor ao atualizar lote" });
+  }
+});
+
 // ── GESTÃO DE PROPOSTAS (Admin) ──
 
 // POST /propostas/:id/aprovar
@@ -353,6 +440,17 @@ app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
     ]);
 
     notifyBrokerProposalApproved(propostaAtualizada, proposta.corretor, proposta.lote);
+
+    // AuditLog
+    await prisma.auditLog.create({
+      data: {
+        loteId: proposta.loteId,
+        userId: req.user.id,
+        evento: "PROPOSTA_APROVADA",
+        payloadAnterior: JSON.stringify({ status: proposta.lote.status, comprador: proposta.lote.comprador }),
+        payloadNovo: JSON.stringify({ status: "Vendido", comprador: proposta.nomeCliente })
+      }
+    });
 
     res.json({ proposta: propostaAtualizada });
   } catch (error) {
@@ -390,6 +488,17 @@ app.post("/propostas/:id/recusar", requireAuth, async (req, res) => {
     ]);
 
     notifyBrokerProposalRejected(propostaAtualizada, proposta.corretor, proposta.lote);
+
+    // AuditLog
+    await prisma.auditLog.create({
+      data: {
+        loteId: proposta.loteId,
+        userId: req.user.id,
+        evento: "PROPOSTA_RECUSADA",
+        payloadAnterior: JSON.stringify({ status: proposta.lote.status }),
+        payloadNovo: JSON.stringify({ status: "Disponível" })
+      }
+    });
 
     res.json({ proposta: propostaAtualizada });
   } catch (error) {
@@ -671,8 +780,22 @@ app.post("/lotes/import-confirm", requireAuth, async (req, res) => {
   if (!updates || !Array.isArray(updates)) return res.status(400).json({ error: "Dados invlidos" });
 
   try {
+    // Proteção: Não sobrescrever lotes Vendidos via importação automática
+    const lotesNoBanco = await prisma.lote.findMany({
+      where: { id: { in: updates.map(u => u.id) } }
+    });
+    const mapVendidos = new Map(lotesNoBanco.filter(l => l.status === "Vendido").map(l => [l.id, l]));
+
+    const validUpdates = updates.filter(u => {
+      if (mapVendidos.has(u.id)) {
+        console.warn(`⚠️ Importação pulada para o Lote ${u.id}: Status atual é 'Vendido'.`);
+        return false;
+      }
+      return true;
+    });
+
     const results = await prisma.$transaction(
-      updates.map(u => prisma.lote.update({
+      validUpdates.map(u => prisma.lote.update({
         where: { id: u.id },
         data: {
           valor: u.valoresNovos.valor,
@@ -685,18 +808,18 @@ app.post("/lotes/import-confirm", requireAuth, async (req, res) => {
     );
 
     // Registro no AuditLog resiliente fora da transação
-    // Usamos o primeiro lote da lista como referência de "âncora" para o log global de importação
     try {
-      if (updates.length > 0) {
+      if (validUpdates.length > 0) {
         await prisma.auditLog.create({
           data: {
-            loteId: updates[0].id, 
+            loteId: validUpdates[0].id, 
             userId: req.user.id,
             evento: "IMPORTACAO_PLANILHA",
             payloadNovo: JSON.stringify({ 
-              total: updates.length, 
-              ids: updates.slice(0, 10).map(u => u.id), // Loga apenas os primeiros 10 IDs para evitar payload gigante
-              info: "Importação em massa via planilha" 
+              total: validUpdates.length,
+              pulas: updates.length - validUpdates.length,
+              ids: validUpdates.slice(0, 10).map(u => u.id),
+              info: "Importação em massa via planilha (lotes vendidos preservados)" 
             })
           }
         });

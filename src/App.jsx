@@ -102,6 +102,7 @@ export default function App() {
   const [editOpen, setEditOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [ef, setEF]             = useState({});
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // ── Simulador ──
   const [sim, setSim] = useState({
@@ -739,12 +740,49 @@ export default function App() {
               </div>
             ))}
             <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <button onClick={() => {
-                setLots(p => p.map(l => l.id === ef.id ? { ...l, ...ef, valor: +ef.valor } : l));
-                setSel(ef); setEditOpen(false); toast$("Lote atualizado.");
-              }} style={{ flex: 1, background: "#16a34a", border: "none", color: "#fff",
-                padding: "10px 0", borderRadius: 7, cursor: "pointer", fontWeight: 700 }}>
-                Salvar
+              <button 
+                disabled={isSavingEdit}
+                onClick={async () => {
+                  setIsSavingEdit(true);
+                  try {
+                    const res = await fetch(`${BASE_URL}/lotes/${ef.id}`, {
+                      method: "PATCH",
+                      headers: {
+                        "Authorization": `Bearer ${user.token}`,
+                        "Content-Type": "application/json"
+                      },
+                      body: JSON.stringify({
+                        status: ef.status,
+                        comprador: ef.comprador,
+                        valor: ef.valor,
+                      })
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok) {
+                      toast$(data.error || "Erro ao salvar alterações", "err");
+                      return;
+                    }
+
+                    // Sucesso: Atualiza estado local com o retorno do banco
+                    setLots(p => p.map(l => l.id === data.id ? data : l));
+                    setSel(data);
+                    setEditOpen(false);
+                    toast$("Lote atualizado com sucesso no servidor.");
+                  } catch (e) {
+                    console.error("[EDITAR_LOTE]", e);
+                    toast$(`Falha de rede: ${e.message}`, "err");
+                  } finally {
+                    setIsSavingEdit(false);
+                  }
+                }} 
+                style={{ 
+                  flex: 1, background: isSavingEdit ? "#64748b" : "#16a34a", border: "none", color: "#fff",
+                  padding: "10px 0", borderRadius: 7, cursor: isSavingEdit ? "not-allowed" : "pointer", 
+                  fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" 
+                }}
+              >
+                {isSavingEdit ? "Salvando..." : "Salvar"}
               </button>
               <button onClick={() => setEditOpen(false)}
                 style={{ flex: 1, background: "#1e293b", border: "none", color: "#94a3b8",
