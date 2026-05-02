@@ -739,10 +739,16 @@ export default function App() {
                 }
               </div>
             ))}
-            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
               <button 
                 disabled={isSavingEdit}
                 onClick={async () => {
+                  // Validação: Se status for Vendido, exige comprador
+                  if (ef.status === "Vendido" && (!ef.comprador || ef.comprador.trim().length < 3)) {
+                    toast$("Para marcar como Vendido, informe o nome completo do comprador.", "err");
+                    return;
+                  }
+
                   setIsSavingEdit(true);
                   try {
                     const res = await fetch(`${BASE_URL}/lotes/${ef.id}`, {
@@ -759,34 +765,43 @@ export default function App() {
                     });
 
                     const data = await res.json();
+                    
                     if (!res.ok) {
-                      toast$(data.error || "Erro ao salvar alterações", "err");
+                      toast$(data.error || "Erro ao persistir no banco de dados", "err");
                       return;
                     }
 
-                    // Sucesso: Atualiza estado local com o retorno do banco
+                    // SUCESSO REAL: Atualiza estado local apenas após confirmação do backend
                     setLots(p => p.map(l => l.id === data.id ? data : l));
                     setSel(data);
                     setEditOpen(false);
-                    toast$("Lote atualizado com sucesso no servidor.");
+                    toast$(`✅ Lote ${data.id} atualizado com sucesso!`);
                   } catch (e) {
-                    console.error("[EDITAR_LOTE]", e);
-                    toast$(`Falha de rede: ${e.message}`, "err");
+                    console.error("[EDITAR] Falha crítica de rede:", e);
+                    toast$(`Falha de conexão: ${e.message}. O dado NÃO foi salvo.`, "err");
                   } finally {
                     setIsSavingEdit(false);
                   }
                 }} 
                 style={{ 
-                  flex: 1, background: isSavingEdit ? "#64748b" : "#16a34a", border: "none", color: "#fff",
-                  padding: "10px 0", borderRadius: 7, cursor: isSavingEdit ? "not-allowed" : "pointer", 
-                  fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" 
+                  width: "100%", background: isSavingEdit ? "#64748b" : "#16a34a", color: "#fff",
+                  padding: "14px 0", borderRadius: 8, cursor: isSavingEdit ? "not-allowed" : "pointer", 
+                  fontWeight: 800, fontSize: 14, border: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
                 }}
               >
-                {isSavingEdit ? "Salvando..." : "Salvar"}
+                {isSavingEdit ? "💾 Gravando no banco..." : "💾 Salvar alterações"}
               </button>
-              <button onClick={() => setEditOpen(false)}
-                style={{ flex: 1, background: "#1e293b", border: "none", color: "#94a3b8",
-                  padding: "10px 0", borderRadius: 7, cursor: "pointer" }}>
+
+              <button 
+                onClick={() => setEditOpen(false)}
+                disabled={isSavingEdit}
+                style={{ 
+                  width: "100%", background: "transparent", border: "1px solid #1e293b", color: "#94a3b8",
+                  padding: "10px 0", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600
+                }}
+              >
                 Cancelar
               </button>
             </div>
