@@ -278,9 +278,12 @@ export function EspelhoPage({ lots, filt, sel, setSel }) {
       
       {/* Legenda de Status (Bottom Left) */}
       <div className="espelho-legend premium-card" style={{ 
-        position: "absolute", bottom: 24, left: 24, 
+        position: "absolute", 
+        bottom: window.innerWidth < 768 ? "calc(16px + env(safe-area-inset-bottom, 0px))" : 24, 
+        left: window.innerWidth < 768 ? 12 : 24, 
         background: "rgba(255, 255, 255, 0.95)", backdropFilter: "blur(8px)", 
-        padding: "16px", borderRadius: "var(--radius-md)", 
+        padding: window.innerWidth < 768 ? "10px 14px" : "16px", 
+        borderRadius: "var(--radius-md)", 
         border: "1px solid var(--border-color)", zIndex: 10 
       }}>
         <div className="espelho-legend-items" style={{ display: "flex", gap: 16 }}>

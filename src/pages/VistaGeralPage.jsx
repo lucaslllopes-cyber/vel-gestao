@@ -6,7 +6,7 @@ import { m2 } from "../utils/format";
 
 export function VistaGeralPage({ filt, byQ, sel, setSel, fq }) {
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
+    <div className="page-container" style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
       {QUADRAS.filter(x => fq === "Todas" || fq === x).map(x => {
         const lts = byQ[x];
         if (!lts || lts.length === 0) return null;

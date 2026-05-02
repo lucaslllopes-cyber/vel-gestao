@@ -6,8 +6,8 @@ import { brl0, m2 } from "../utils/format";
 
 export function ListaPage({ filt, isAdmin, sel, setSel, onEditar }) {
   return (
-    <div style={{ flex: 1, overflow: "auto", padding: "24px" }}>
-      <div className="premium-card" style={{ overflow: "hidden" }}>
+    <div className="page-container" style={{ flex: 1, overflow: "auto", padding: "24px" }}>
+      <div className="premium-card" style={{ overflow: "hidden", background: "transparent", boxShadow: "none", border: "none" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ background: "#F8FAFC", borderBottom: "1px solid var(--border-color)" }}>
@@ -38,20 +38,18 @@ export function ListaPage({ filt, isAdmin, sel, setSel, onEditar }) {
                     cursor: "pointer", borderBottom: "1px solid var(--border-color)",
                     transition: "background 0.2s"
                   }}
-                  onMouseEnter={e => !isSel && (e.currentTarget.style.background = "#F8FAFC")}
-                  onMouseLeave={e => !isSel && (e.currentTarget.style.background = i % 2 === 0 ? "#FFFFFF" : "#FDFDFD")}
                 >
-                  <td style={{ padding: "14px 20px", fontWeight: 800, color: "var(--navy-primary)" }}>{lot.id}</td>
-                  <td style={{ padding: "14px 20px", color: "var(--text-secondary)", fontWeight: 500 }}>{lot.q}</td>
-                  <td style={{ padding: "14px 20px", color: "var(--text-primary)", fontWeight: 500 }}>
+                  <td data-label="Lote" style={{ padding: "14px 20px", fontWeight: 800, color: "var(--navy-primary)" }}>{lot.id}</td>
+                  <td data-label="Quadra" style={{ padding: "14px 20px", color: "var(--text-secondary)", fontWeight: 500 }}>{lot.q}</td>
+                  <td data-label="Área" style={{ padding: "14px 20px", color: "var(--text-primary)", fontWeight: 500 }}>
                     {mostrarDetalhes ? m2(lot.area) : "—"}
                   </td>
                   {isAdmin && (
-                    <td style={{ padding: "14px 20px", fontWeight: 700, color: "var(--text-primary)" }}>
+                    <td data-label="Valor" style={{ padding: "14px 20px", fontWeight: 700, color: "var(--text-primary)" }}>
                       {brl0(lot.valor)}
                     </td>
                   )}
-                  <td style={{ padding: "14px 20px" }}>
+                  <td data-label="Status" style={{ padding: "14px 20px" }}>
                     <div style={{
                       display: "inline-flex", alignItems: "center", gap: 6,
                       background: s.bg + "15", color: s.bg,
@@ -61,7 +59,7 @@ export function ListaPage({ filt, isAdmin, sel, setSel, onEditar }) {
                       {lot.status}
                     </div>
                   </td>
-                  <td style={{
+                  <td data-label="Comprador" style={{
                     padding: "14px 20px", color: "var(--text-secondary)",
                     maxWidth: 160, overflow: "hidden",
                     textOverflow: "ellipsis", whiteSpace: "nowrap",

@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { BASE_URL } from "./utils/api";
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import { LOTS_SEED, DEFAULT_CFG, QUADRAS, SC } from "./data/constants";
 import { LS, STORAGE_KEYS }                    from "./utils/storage";
@@ -25,6 +26,33 @@ import { ConfigPage }     from "./pages/ConfigPage";
 import { EspelhoPage }    from "./pages/EspelhoPage";
 import { UsuariosPage }   from "./pages/UsuariosPage";
 import { ImportacaoPage } from "./pages/ImportacaoPage";
+
+// ── Icons (SVGs for consistent mobile UI) ──
+const IconGeral = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect>
+    <rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
+  </svg>
+);
+const IconMapa = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+    <line x1="8" y1="2" x2="8" y2="18"></line><line x1="16" y1="6" x2="16" y2="22"></line>
+  </svg>
+);
+const IconPropostas = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+    <polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line>
+    <line x1="16" y1="17" x2="8" y2="17"></line>
+  </svg>
+);
+const IconConfig = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+  </svg>
+);
 
 // ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -103,6 +131,12 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [ef, setEF]             = useState({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  // ── PWA Update Logic ──
+  const {
+    needUpdate: [needUpdate, setNeedUpdate],
+    updateServiceWorker,
+  } = useRegisterSW();
 
   // ── Simulador ──
   const [sim, setSim] = useState({
@@ -425,39 +459,89 @@ export default function App() {
         {`
           .mobile-nav-btn { display: none; }
           .bottom-nav { display: none; }
-          @media (max-width: 768px) {
-            .app-main-layout { flex-direction: column !important; }
+            .app-main-layout { 
+              flex-direction: column !important; 
+              padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+              height: auto !important;
+              overflow: visible !important;
+            }
             .desktop-nav { display: none !important; }
             .mobile-nav-btn { display: flex !important; }
+            
+            .premium-header { 
+              height: 56px !important; 
+              padding: 0 12px !important; 
+              position: sticky; top: 0; z-index: 1100;
+            }
+            .premium-header img { height: 24px !important; }
+            .role-badge { display: none !important; }
+            .user-avatar { width: 28px !important; height: 28px !important; font-size: 10px !important; }
+
             .bottom-nav { 
               display: flex !important; 
               position: fixed; bottom: 0; left: 0; right: 0; 
-              height: 64px; background: white; border-top: 1px solid var(--border-color);
-              z-index: 200; justify-content: space-around; align-items: center;
+              height: calc(60px + env(safe-area-inset-bottom, 0px)); 
+              background: #060a0e; border-top: 1px solid #1e293b;
+              z-index: 1200; justify-content: space-around; align-items: flex-start;
+              padding-top: 8px;
               padding-bottom: env(safe-area-inset-bottom, 0px);
-              box-shadow: 0 -4px 12px rgba(0,0,0,0.05);
+              box-shadow: 0 -4px 25px rgba(0,0,0,0.5);
             }
             .bottom-nav-item {
               display: flex; flex-direction: column; align-items: center; gap: 4px;
-              color: var(--text-secondary); font-size: 10px; font-weight: 600;
-              cursor: pointer; flex: 1; padding: 8px 0;
+              color: #64748b; font-size: 9px; font-weight: 700;
+              cursor: pointer; flex: 1; padding: 2px 0;
+              text-transform: uppercase; letter-spacing: 0.3px;
+              transition: all 0.2s;
             }
-            .bottom-nav-item.active { color: var(--navy-primary); }
-            .bottom-nav-item i { font-size: 20px; }
+            .bottom-nav-item.active { color: var(--gold-primary); }
+            .bottom-nav-item svg { width: 20px; height: 20px; transition: transform 0.2s; }
+            .bottom-nav-item.active svg { transform: translateY(-2px); }
             
             .painel-lateral, .painel-flutuante { 
-              position: fixed !important; bottom: 64px !important; top: auto !important; 
-              right: 0 !important; left: 0 !important; width: 100% !important; 
-              z-index: 150 !important; max-height: 70vh !important; 
-              border-radius: 24px 24px 0 0 !important; border: none !important; 
-              border-top: 1px solid var(--border-color) !important; 
-              box-shadow: 0 -10px 40px rgba(0,0,0,0.1) !important; 
+              position: fixed !important; bottom: calc(60px + env(safe-area-inset-bottom, 0px)) !important; 
+              top: auto !important; right: 0 !important; left: 0 !important; width: 100% !important; 
+              z-index: 1050 !important; max-height: 85vh !important; 
+              border-radius: 20px 20px 0 0 !important; border: none !important; 
+              box-shadow: 0 -15px 50px rgba(0,0,0,0.6) !important; 
             }
-            .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; padding: 12px !important; }
+            .kpi-grid { 
+              grid-template-columns: repeat(2, 1fr) !important; 
+              padding: 12px 16px !important; 
+              gap: 10px !important;
+            }
+            .kpi-card { padding: 10px 14px !important; }
+            .kpi-icon-box { width: 28px !important; height: 28px !important; font-size: 12px !important; }
+            .kpi-label { font-size: 8px !important; }
+            .kpi-value { font-size: 12px !important; }
+            .kpi-grid > div:last-child { grid-column: span 2; } 
+
             .is-espelho-tab .kpi-grid { display: none !important; }
             .espelho-header { display: none !important; }
-          }
+            .filter-bar { padding: 8px 12px !important; gap: 6px !important; position: sticky; top: 56px; z-index: 1000; }
+            .filter-bar select, .filter-bar input { font-size: 12px !important; padding: 6px 8px !important; }
+            
+            .page-container {
+              padding-bottom: 40px !important; /* Espaço extra interno nas páginas */
+            }
 
+            /* Tabela Mobile para Cards */
+            table thead { display: none; }
+            table tr { 
+              display: flex; flex-direction: column; 
+              margin-bottom: 12px; padding: 12px; 
+              border: 1px solid var(--border-color) !important; 
+              border-radius: 12px; background: white !important;
+            }
+            table td { padding: 4px 0 !important; border: none !important; display: flex; justify-content: space-between; align-items: center; }
+            table td::before { content: attr(data-label); font-weight: 700; font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
+            table td:first-child { font-size: 16px; border-bottom: 1px solid #f1f5f9 !important; padding-bottom: 8px !important; margin-bottom: 4px; }
+            table td:first-child::before { content: "Lote"; }
+          }
+          @keyframes slideUp {
+            from { transform: translateY(100px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
         `}
       </style>
       <Toast toast={toast} />
@@ -470,8 +554,8 @@ export default function App() {
             alt="Residencial Terra Vista" 
             style={{ height: 32, objectFit: "contain", display: "block" }} 
           />
-          <div style={{ height: 24, width: 1, background: "rgba(255,255,255,0.15)" }} />
-          <span style={{ fontSize: 10, color: "var(--gold-primary)", background: "rgba(200, 162, 74, 0.1)",
+          <div style={{ height: 24, width: 1, background: "rgba(255,255,255,0.15)" }} className="role-badge" />
+          <span className="role-badge" style={{ fontSize: 10, color: "var(--gold-primary)", background: "rgba(200, 162, 74, 0.1)",
             padding: "2px 8px", borderRadius: 4, textTransform: "uppercase", fontWeight: "800", letterSpacing: "0.5px" }}>
             {isAdmin ? "Administrador" : "Consultor VEL"}
           </span>
@@ -490,7 +574,7 @@ export default function App() {
             <div style={{ textAlign: "right", display: "none" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "white", lineHeight: 1 }}>{user.nome}</div>
             </div>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--gold-primary)", 
+            <div className="user-avatar" style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--gold-primary)", 
               display: "flex", alignItems: "center", justifyContent: "center", color: "var(--navy-primary)", fontWeight: 800, fontSize: 12 }}>
               {user.nome.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
             </div>
@@ -809,11 +893,33 @@ export default function App() {
         </div>
       )}
 
+      {/* ── PWA Reload Prompt ── */}
+      {needUpdate && (
+        <div style={{
+          position: "fixed", bottom: "calc(80px + env(safe-area-inset-bottom, 0px))", left: 16, right: 16,
+          background: "var(--gold-primary)", color: "var(--navy-primary)",
+          padding: "16px", borderRadius: 12, zIndex: 2000,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.3)", animation: "slideUp 0.3s ease"
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Nova versão disponível!</div>
+          <button 
+            onClick={() => updateServiceWorker(true)}
+            style={{ 
+              background: "var(--navy-primary)", color: "white", border: "none", 
+              padding: "8px 16px", borderRadius: 6, fontWeight: 800, fontSize: 12, cursor: "pointer"
+            }}
+          >
+            Atualizar Agora
+          </button>
+        </div>
+      )}
+
       {/* ── Legenda ── */}
       <div style={{
         position: "fixed", bottom: 8, left: 8,
         background: "#090e16cc", backdropFilter: "blur(8px)",
-        border: "1px solid #1e293b", borderRadius: 7,
+        border: "1px solid #1e3a5f", borderRadius: 7,
         padding: "5px 11px", display: "flex", gap: 11,
         pointerEvents: "none", zIndex: 50,
       }}>
@@ -827,13 +933,13 @@ export default function App() {
       {/* ── BOTTOM NAV (Mobile) ── */}
       <div className="bottom-nav">
         {[
-          { k: "vista-geral", l: "Geral", i: "⬛" },
-          { k: "espelho",     l: "Mapa",  i: "🗺️" },
-          { k: "props",       l: "Propostas", i: "📋" },
-          { k: "cfg",         l: "Config", i: "⚙️", show: isAdmin },
+          { k: "vista-geral", l: "Geral", i: <IconGeral /> },
+          { k: "espelho",     l: "Mapa",  i: <IconMapa /> },
+          { k: "props",       l: "Propostas", i: <IconPropostas /> },
+          { k: "cfg",         l: "Config", i: <IconConfig />, show: isAdmin },
         ].filter(t => t.show !== false).map(t => (
           <div key={t.k} className={`bottom-nav-item ${tab === t.k ? "active" : ""}`} onClick={() => setTab(t.k)}>
-            <span style={{ fontSize: 20 }}>{t.i}</span>
+            {t.i}
             <span>{t.l}</span>
           </div>
         ))}
