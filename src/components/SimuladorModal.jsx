@@ -5,12 +5,12 @@ import { brl, brl0, m2 } from "../utils/format";
 
 export function SimuladorModal({ sel, sim, setSim, result, cfg, canPropose = true, proposeMessage, onReservar, onProximo, onClose }) {
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "#000c", zIndex: 200,
+    <div className="modal-overlay" style={{
+      position: "fixed", inset: 0, background: "#000c", zIndex: 2000,
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: 12, overflowY: "auto",
     }}>
-      <div style={{
+      <div className="modal-content" style={{
         background: "#090e16", border: "1px solid #1e293b", borderRadius: 14,
         padding: 22, width: 520, maxWidth: "100%", maxHeight: "92vh", overflow: "auto",
       }}>

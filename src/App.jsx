@@ -452,6 +452,7 @@ export default function App() {
         {`
           .mobile-nav-btn { display: none; }
           .bottom-nav { display: none; }
+          @media (max-width: 768px) {
             .app-main-layout { 
               flex-direction: column !important; 
               padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
@@ -530,6 +531,22 @@ export default function App() {
             table td::before { content: attr(data-label); font-weight: 700; font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
             table td:first-child { font-size: 16px; border-bottom: 1px solid #f1f5f9 !important; padding-bottom: 8px !important; margin-bottom: 4px; }
             table td:first-child::before { content: "Lote"; }
+
+            /* Modais full-screen no mobile */
+            .modal-overlay {
+              z-index: 3000 !important;
+              padding: 0 !important;
+              align-items: flex-start !important;
+            }
+            .modal-content {
+              width: 100% !important;
+              height: 100% !important;
+              max-height: 100svh !important;
+              border-radius: 0 !important;
+              padding: 24px 20px calc(24px + env(safe-area-inset-bottom, 24px)) !important;
+              overflow-y: auto !important;
+              border: none !important;
+            }
           }
           @keyframes slideUp {
             from { transform: translateY(100px); opacity: 0; }
@@ -734,7 +751,7 @@ export default function App() {
         {tab === "import" && isAdmin && <ImportacaoPage user={user} onRefreshLotes={fetchLotes} />}
 
         {/* Painel Lateral — compartilhado com Vista Geral e Lista */}
-        {(tab === "vista-geral" || tab === "lista") && sel && (
+        {(tab === "vista-geral" || tab === "lista") && sel && !simOpen && !propOpen && (
           <PainelLote
             lot={sel} isAdmin={isAdmin} cfg={cfg} user={user}
             modo="lateral"
@@ -743,7 +760,7 @@ export default function App() {
         )}
 
         {/* Painel Flutuante — sobreposição para o Espelho */}
-        {tab === "espelho" && sel && (
+        {tab === "espelho" && sel && !simOpen && !propOpen && (
           <PainelLote
             lot={sel} isAdmin={isAdmin} cfg={cfg} user={user}
             modo="flutuante"

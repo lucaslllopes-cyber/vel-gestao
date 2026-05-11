@@ -9,11 +9,11 @@ export function PropModal({ sel, sim, result, onSubmit, onBack, onClose }) {
   const [f, setF] = useState({ nome: "", tel: "", email: "", obs: "" });
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(19, 53, 65, 0.8)", zIndex: 500,
+    <div className="modal-overlay" style={{
+      position: "fixed", inset: 0, background: "rgba(19, 53, 65, 0.8)", zIndex: 2000,
       display: "flex", alignItems: "center", justifyContent: "center", padding: 12, backdropFilter: "blur(4px)"
     }}>
-      <div className="premium-card" style={{
+      <div className="premium-card modal-content" style={{
         background: "white", padding: 32, width: 480, maxWidth: "100%", 
         maxHeight: "90vh", overflow: "auto", boxShadow: "var(--shadow-lg)",
         borderRadius: "var(--radius-lg)"
