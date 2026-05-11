@@ -751,7 +751,7 @@ export default function App() {
         {tab === "import" && isAdmin && <ImportacaoPage user={user} onRefreshLotes={fetchLotes} />}
 
         {/* Painel Lateral — compartilhado com Vista Geral e Lista */}
-        {(tab === "vista-geral" || tab === "lista") && sel && !simOpen && !propOpen && (
+        {(tab === "vista-geral" || tab === "lista") && sel && !simOpen && !propOpen && !editOpen && (
           <PainelLote
             lot={sel} isAdmin={isAdmin} cfg={cfg} user={user}
             modo="lateral"
@@ -760,7 +760,7 @@ export default function App() {
         )}
 
         {/* Painel Flutuante — sobreposição para o Espelho */}
-        {tab === "espelho" && sel && !simOpen && !propOpen && (
+        {tab === "espelho" && sel && !simOpen && !propOpen && !editOpen && (
           <PainelLote
             lot={sel} isAdmin={isAdmin} cfg={cfg} user={user}
             modo="flutuante"
@@ -803,38 +803,39 @@ export default function App() {
 
       {/* ── MODAL: Editar Lote (admin) ── */}
       {editOpen && isAdmin && (
-        <div style={{ position: "fixed", inset: 0, background: "#000c", zIndex: 200,
-          display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#090e16", border: "1px solid #1e293b",
-            borderRadius: 12, padding: 22, width: 360, maxWidth: "90vw" }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#f1f5f9", marginBottom: 14 }}>
-              Editar Lote {ef.id}
+        <div className="modal-overlay" style={{ position: "fixed", inset: 0, background: "rgba(19, 53, 65, 0.8)", zIndex: 2000,
+          display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(4px)" }}>
+          <div className="modal-content" style={{ background: "white", border: "1px solid var(--border-color)",
+            borderRadius: 16, padding: 32, width: 400, maxWidth: "100%", boxShadow: "var(--shadow-lg)" }}>
+            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--navy-primary)", marginBottom: 20, letterSpacing: "-0.5px" }}>
+              🛠️ Editar Lote {ef.id}
             </div>
             {[
-              { l: "Status",     k: "status",    t: "select", opts: ["Disponível", "Reservado", "Vendido"] },
-              { l: "Comprador",  k: "comprador", t: "text" },
-              { l: "Valor (R$)", k: "valor",     t: "number" },
+              { l: "Status do Lote",     k: "status",    t: "select", opts: ["Disponível", "Reservado", "Vendido"] },
+              { l: "Nome do Comprador",  k: "comprador", t: "text" },
+              { l: "Valor de Tabela (R$)", k: "valor",     t: "number" },
             ].map(({ l, k, t, opts }) => (
-              <div key={k} style={{ marginBottom: 11 }}>
-                <div style={{ fontSize: 10, color: "#64748b", marginBottom: 3,
-                  textTransform: "uppercase", letterSpacing: "0.5px" }}>{l}</div>
+              <div key={k} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 10, color: "var(--text-secondary)", marginBottom: 6,
+                  textTransform: "uppercase", letterSpacing: "1px", fontWeight: 700 }}>{l}</div>
                 {t === "select"
                   ? <select value={ef[k] || ""} onChange={e => setEF(f => ({ ...f, [k]: e.target.value }))}
-                      style={{ width: "100%", background: "#141e2e", border: "1px solid #1e3a5f",
-                        borderRadius: 7, padding: "8px 10px", color: "#e2e8f0", fontSize: 13, outline: "none" }}>
+                      style={{ width: "100%", background: "#f8fafc", border: "1px solid var(--border-color)",
+                        borderRadius: 10, padding: "12px 14px", color: "var(--navy-primary)", fontSize: 14, outline: "none", fontWeight: 600 }}>
                       {opts.map(o => <option key={o}>{o}</option>)}
                     </select>
                   : <input type={t} value={ef[k] || ""}
                       onChange={e => setEF(f => ({ ...f, [k]: t === "number" ? parseFloat(e.target.value) || 0 : e.target.value }))}
-                      style={{ width: "100%", background: "#141e2e", border: "1px solid #1e3a5f",
-                        borderRadius: 7, padding: "8px 10px", color: "#e2e8f0", fontSize: 13,
-                        outline: "none", boxSizing: "border-box" }}
+                      style={{ width: "100%", background: "#f8fafc", border: "1px solid var(--border-color)",
+                        borderRadius: 10, padding: "12px 14px", color: "var(--navy-primary)", fontSize: 14,
+                        outline: "none", boxSizing: "border-box", fontWeight: 600 }}
                     />
                 }
               </div>
             ))}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 18 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 24 }}>
               <button 
+                className="btn-primary"
                 disabled={isSavingEdit}
                 onClick={async () => {
                   // Validação: Se status for Vendido, exige comprador
@@ -878,14 +879,13 @@ export default function App() {
                   }
                 }} 
                 style={{ 
-                  width: "100%", background: isSavingEdit ? "#64748b" : "#16a34a", color: "#fff",
-                  padding: "14px 0", borderRadius: 8, cursor: isSavingEdit ? "not-allowed" : "pointer", 
-                  fontWeight: 800, fontSize: 14, border: "none",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+                  width: "100%", background: isSavingEdit ? "#94a3b8" : "#0f172a", color: "#fff",
+                  padding: "14px 0", borderRadius: 10, cursor: isSavingEdit ? "not-allowed" : "pointer", 
+                  fontWeight: 700, fontSize: 14, border: "none",
+                  transition: "all 0.2s"
                 }}
               >
-                {isSavingEdit ? "💾 Gravando no banco..." : "💾 Salvar alterações"}
+                {isSavingEdit ? "⌛ Gravando no banco..." : "💾 Salvar alterações"}
               </button>
 
               <button 
