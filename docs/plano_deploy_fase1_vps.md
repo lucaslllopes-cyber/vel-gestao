@@ -365,23 +365,147 @@ EOF
 
 ---
 
-## 11. Dúvidas pendentes antes do deploy
+## 11. Inspeção read-only da VPS (executada em 2026-05-25)
 
-As seguintes informações **precisam ser confirmadas com Lucas** antes de executar o deploy:
+> Inspeção feita exclusivamente via chamadas HTTP públicas à API e ao frontend de produção.  
+> Nenhum SSH foi utilizado. Nenhuma alteração foi feita. Nenhum dado foi modificado.
 
-| # | Dúvida | Por que importa |
+### 11.1 Infraestrutura confirmada
+
+| Item | Valor confirmado |
+|---|---|
+| IP da VPS | `76.13.174.231` |
+| Servidor web | `nginx/1.24.0 (Ubuntu)` |
+| Frontend | `velgestao.com` — HTML estático servido pelo nginx |
+| Backend | `api.velgestao.com` — Express 5 por trás do nginx (proxy reverso) |
+| Last-Modified do frontend | Mon, 11 May 2026 — último build/deploy foi em 11/05 |
+| Versão do backend | **Pré-Fase 1** — `/project/current` retorna 404, sem `isSuperAdmin` no JWT |
+
+### 11.2 Estado do banco de produção
+
+**Lotes:**
+```
+Total: 75
+Vendidos:    29
+Reservados:  2   (menos que dev — esperado, reservas expiram)
+Disponíveis: 44
+projectId:   null em todos (pré-Fase 1 confirmado)
+```
+
+**Propostas:**
+```
+Total: 4
+Recusada:          2
+AjusteSolicitado:  1
+Distratada:        1
+projectId:         null em todas (pré-Fase 1 confirmado)
+```
+
+**Usuários (10 no total):**
+
+| # | login | nome | role | status |
+|---|---|---|---|---|
+| 1 | `admin` | Gestão Terra Vista | ADMIN | ATIVO |
+| 2 | `lucaslllopes@gmail.com` | Lucas Loiola Lopes | admin | ATIVO |
+| 3 | `engenheiro_diegofranco@hotmail.com` | Diego | admin | ATIVO |
+| 4 | `adrimagarner@gmail.com` | Adriane | corretor | ATIVO |
+| 5 | `anarosadiascorretora@gmail.com` | Ana Rosa Dias Batista | corretor | ATIVO |
+| 6 | `fernanda.reis@gmail.com` | Fernanda de Fátima Gonçalves Reis | corretor | ATIVO |
+| 7 | `jvvillatoro1993@gmail.com` | João | corretor | ATIVO |
+| 8 | `corretor1` | Corretor — VEL | CORRETOR | ATIVO |
+| 9 | `testesolicitacao@email.com` | teste | corretor | INATIVO |
+| 10 | `teste@email.com.br` | teste | corretor | RECUSADO |
+
+> ⚠️ O dev esperava 5 usuários; produção tem **10 usuários reais**.
+
+### 11.3 Compatibilidade da migration SQL com o schema de produção
+
+A migration `add_multitenancy_foundation` usa `INSERT INTO new_X SELECT ... FROM X` para recriar tabelas com novos campos. Para isso funcionar, a tabela original precisa ter as colunas que a migration referencia.
+
+**Verificação da tabela `Lote`:**
+
+Campos que a migration do `INSERT new_Lote` referencia além dos da `_init`:
+
+| Campo | Presente em produção? | Como confirmado |
 |---|---|---|
-| D1 | **Como o backend roda na VPS?** PM2, systemd, ou diretamente? | Necessário para reiniciar corretamente |
-| D2 | **Qual o caminho do projeto na VPS?** `/var/www/vel-gestao`? `/home/user/vel-gestao`? | Necessário para navegar e executar comandos |
-| D3 | **O Nginx está configurado?** Qual pasta serve o frontend? `/dist` ou outra? | Necessário para saber se `npm run build` já é suficiente |
-| D4 | **Já existe algum banco SQLite em produção?** Tem dados reais de usuários/lotes? | Determina se o seed pode ser aplicado com segurança |
-| D5 | **A migration `_init` está registrada no banco de produção?** | Determina se precisa de baseline antes do migrate deploy |
-| D6 | **Adriane usa a plataforma em produção hoje?** | Se sim, o corretor precisa funcionar desde o primeiro acesso pós-deploy |
-| D7 | **Qual o domínio do frontend?** `velgestao.com`? `gestao.velgestao.com`? | Para validar no navegador pós-deploy |
+| `valorAvista` | ✅ Sim | Retornado em `/lotes` |
+| `situacaoLegal` | ✅ Sim | Retornado em `/lotes` |
+| `compradorAnterior` | ✅ Sim | Retornado em `/lotes` |
+
+**Verificação da tabela `User`:**
+
+| Campo | Presente em produção? | Como confirmado |
+|---|---|---|
+| `status` | ✅ Sim | Retornado em `/users` |
+| `telefone` | ✅ Sim | Retornado em `/users` |
+| `imobiliaria` | ✅ Sim | Retornado em `/users` |
+
+**Conclusão:** ✅ A migration SQL é **compatível com o schema de produção**. Os campos intermediários que foram adicionados via `db push` após o `_init` estão presentes e a migration não vai falhar com "column not found".
+
+### 11.4 Comportamento previsto do seed com os usuários de produção
+
+O `seed-fase1.js` usa `(user.role || '').toLowerCase()` para classificação — correto para a capitalização mista da produção (ADMIN/admin, CORRETOR/corretor).
+
+| login | Classificação pelo seed | Observação |
+|---|---|---|
+| `admin` | `project_admin` + `isSuperAdmin=true` | ✅ Lucas — correto |
+| `lucaslllopes@gmail.com` | `project_admin` + `isSuperAdmin=true` | ⚠️ Conta pessoal de Lucas — confirmar se deve ter acesso |
+| `engenheiro_diegofranco@hotmail.com` | `project_admin` + `isSuperAdmin=true` | 🔴 ALERTA: Diego tem `role=admin`, mas deveria ser SOCIO sem acesso operacional. O seed vai dar a ele acesso total. **Confirmar com Lucas.** |
+| `adrimagarner@gmail.com` | `commercial_manager` | ✅ Adriane — correto |
+| `anarosadiascorretora@gmail.com` | `corretor` | ✅ Ana Rosa |
+| `fernanda.reis@gmail.com` | `corretor` | ✅ Fernanda |
+| `jvvillatoro1993@gmail.com` | `ALERTA_SEM_ACAO` | ✅ João — sem acesso automático (política intencional) |
+| `corretor1` | `corretor` | ✅ Usuário de teste, deixar como corretor |
+| `testesolicitacao@email.com` | `IGNORAR` (status INATIVO) | ✅ Não receberá acesso |
+| `teste@email.com.br` | `ALERTA_SEM_ACAO` (nome "teste") | ✅ Status RECUSADO; capturado pelo filtro de teste |
+
+> **Ação necessária antes do seed:** Lucas precisa decidir o que fazer com Diego (`engenheiro_diegofranco@hotmail.com`). Como ele tem `role=admin`, o seed o classifica como `project_admin` + `isSuperAdmin=true`, dando acesso total. Se a intenção é que Diego seja apenas SOCIO/participante (sem login operacional), o role dele no banco precisa ser alterado para `corretor` ou `viewer` antes do seed — OU o seed precisa de regra customizada para excluir Diego pelo login. **Esta decisão precisa de Lucas antes do apply do seed.**
+
+### 11.5 Processo manager — desconhecido
+
+Nenhum header HTTP expõe informação sobre o processo manager (`X-PM2-*`, `X-Supervisor-*` etc.). A API responde normalmente. **D1 não pode ser respondida sem SSH.**
 
 ---
 
-## 12. Estratégia de merge recomendada
+## 12. Dúvidas pendentes — status pós-inspeção
+
+| # | Dúvida | Status | Resposta |
+|---|---|---|---|
+| D1 | **Como o backend roda na VPS?** PM2, systemd, ou diretamente? | ❓ **PENDENTE** | Não visível via HTTP. Lucas deve verificar com `pm2 list` ou `systemctl list-units \| grep node` |
+| D2 | **Qual o caminho do projeto na VPS?** | ❓ **PENDENTE** | Não visível via HTTP. Provável `/var/www/vel-gestao` ou `/home/ubuntu/vel-gestao` |
+| D3 | **Nginx: qual pasta serve o frontend?** | 🟡 **PARCIAL** | nginx/1.24.0 Ubuntu confirmado. Proxy para Express confirmado. Pasta exata (raiz do static) desconhecida sem `cat /etc/nginx/sites-enabled/*` |
+| D4 | **Banco de produção: dados reais?** | ✅ **CONFIRMADO** | 75 lotes (29V/2R/44D), 4 propostas, 10 usuários reais — ver seção 11.2 |
+| D5 | **Migration `_init` registrada no banco?** | ❓ **PENDENTE** | Não verificável via HTTP. Provável drift (banco criado via `db push`). Lucas deve rodar `npx prisma migrate status` na VPS |
+| D6 | **Adriane usa a plataforma hoje?** | ✅ **CONFIRMADO** | `adrimagarner@gmail.com`, role=corretor, status=ATIVO — usuária ativa em produção |
+| D7 | **Domínio do frontend?** | ✅ **CONFIRMADO** | `velgestao.com` (frontend static) + `api.velgestao.com` (backend) |
+
+**Itens que precisam de SSH para serem respondidos:**
+- **D1** — `pm2 list` ou `systemctl list-units --type=service | grep -i node`
+- **D2** — `pwd` após navegar até o projeto; ou `find / -name "server.js" -path "*/vel-gestao/*" 2>/dev/null`
+- **D3** — `cat /etc/nginx/sites-enabled/*`
+- **D5** — `cd backend && npx prisma migrate status`
+
+---
+
+## 13. Alerta crítico pré-seed: Diego tem role=admin
+
+> 🔴 Este alerta foi identificado durante a inspeção read-only e precisa de decisão de Lucas antes do apply do seed.
+
+Diego (`engenheiro_diegofranco@hotmail.com`) tem `role=admin` no banco de produção. O `seed-fase1.js` classifica qualquer usuário com `role=admin` como `project_admin` + `isSuperAdmin=true`, dando acesso operacional total ao sistema.
+
+**Opções:**
+
+| Opção | Ação | Impacto |
+|---|---|---|
+| **A — Diego é admin operacional** | Não alterar nada. O seed vai criar ProjectMember com perfil `project_admin` | Diego terá acesso total ao sistema de gestão |
+| **B — Diego é sócio, sem acesso operacional** | Antes do seed, alterar role de Diego para `viewer` ou `socio` via SQL direto no banco | Diego não receberá ProjectMember operacional; o PARTICIPANTS do seed já o inclui como SOCIO |
+| **C — Diego fica inativo** | Alterar `status=INATIVO` antes do seed | O seed ignorará Diego completamente |
+
+**Recomendação:** Lucas decide entre A, B ou C. O mais provável pela intenção do código é a **Opção B ou C** — Diego aparece no seed como PARTICIPANT (SOCIO), não como operador.
+
+---
+
+## 14. Estratégia de merge recomendada
 
 A branch `feat/fase1-fundacao-multioperacao` tem 3 commits à frente de `main`:
 
@@ -411,4 +535,4 @@ git push origin main
 
 ---
 
-*Documento criado em 2026-05-25. Deploy NÃO executado. Aguardando confirmação das dúvidas D1–D7 e janela de manutenção.*
+*Documento criado em 2026-05-25. Inspeção read-only executada em 2026-05-25 (seções 11–13). Deploy NÃO executado. Aguardando D1, D2, D3-completo, D5 (requerem SSH de Lucas) e decisão sobre Diego (seção 13).*

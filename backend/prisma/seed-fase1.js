@@ -15,6 +15,23 @@ const DRY_RUN = !process.argv.includes('--apply');
 const MODO = DRY_RUN ? '🔍 DRY-RUN (preview — nada será gravado)' : '✅ APPLY (gravando no banco)';
 
 // ─────────────────────────────────────────────────────────────
+// SUPER ADMINS EXPLÍCITOS
+//
+// ATENÇÃO: Somente os logins listados aqui recebem:
+//   • isSuperAdmin = true no User
+//   • ProjectMember com perfil = 'project_admin'
+//
+// Outros usuários com role=admin NÃO recebem ProjectMember
+// automaticamente — são listados como ALERTA para revisão manual.
+//
+// Para adicionar um super admin, acrescente o login EXATO aqui.
+// ─────────────────────────────────────────────────────────────
+const SUPER_ADMIN_IDENTIFIERS = new Set([
+  'admin',  // Conta principal da Gestão Terra Vista (Lucas)
+  // 'lucaslllopes@gmail.com',  // Descomente se a conta pessoal de Lucas deve ser super admin
+]);
+
+// ─────────────────────────────────────────────────────────────
 // CONFIGURAÇÕES DA OPERAÇÃO
 // ─────────────────────────────────────────────────────────────
 
@@ -98,88 +115,113 @@ const PARTICIPANTS = [
 ];
 
 // ─────────────────────────────────────────────────────────────
-// HEURÍSTICA DE MAPEAMENTO DE USUÁRIOS → PERFIL NO PROJETO
+// MAPEAMENTO DE USUÁRIOS → PERFIL NO PROJETO
+//
+// Prioridade das regras (do mais ao menos específico):
+//   1. Status inativo/recusado → ignorar
+//   2. Login em SUPER_ADMIN_IDENTIFIERS → project_admin + isSuperAdmin
+//   3. role=admin mas NÃO mapeado → alerta (sem acesso automático)
+//   4. Adriane (por nome/login) → commercial_manager
+//   5. João (por nome/login) → alerta (sem acesso automático)
+//   6. Usuários de teste (por nome/login) → alerta
+//   7. role=corretor → corretor
+//   8. Qualquer outro → alerta
 // ─────────────────────────────────────────────────────────────
 
 function classificarUsuario(user) {
-  const login = (user.login || '').toLowerCase();
+  const login = (user.login || '');
+  const loginL = login.toLowerCase();
   const nome  = (user.nome  || '').toLowerCase();
   const role  = (user.role  || '').toLowerCase();
 
-  // Usuário INATIVO → nunca criar ProjectMember
-  if (user.status === 'INATIVO') {
+  // 1. Status inativo ou recusado → nunca criar ProjectMember
+  if (user.status === 'INATIVO' || user.status === 'RECUSADO') {
     return {
-      acao:   'IGNORAR',
-      motivo: `status INATIVO — não receberá acesso ao projeto`,
-      perfil: null,
+      acao:         'IGNORAR',
+      motivo:       `status ${user.status} — não receberá acesso ao projeto`,
+      perfil:       null,
       isSuperAdmin: false,
     };
   }
 
-  // Admin do sistema → presumido Lucas (único usuário com role=ADMIN)
-  if (role === 'admin' || login === 'admin') {
+  // 2. Super Admin explícito — apenas logins listados em SUPER_ADMIN_IDENTIFIERS
+  //    Comparação exata (case-sensitive) com o login original.
+  if (SUPER_ADMIN_IDENTIFIERS.has(login)) {
     return {
-      acao:   'PROJECT_MEMBER',
-      perfil: 'project_admin',
+      acao:         'PROJECT_MEMBER',
+      perfil:       'project_admin',
       isSuperAdmin: true,
-      motivo: `role=ADMIN / login="admin" → presumido Lucas (Gestão Terra Vista). ` +
-               `⚠ Confirme se este é realmente o cadastro de Lucas.`,
-      status: 'ATIVO',
+      motivo:       `login "${login}" está em SUPER_ADMIN_IDENTIFIERS → project_admin + isSuperAdmin=true`,
+      status:       'ATIVO',
     };
   }
 
-  // Adriane → commercial_manager
-  if (login.includes('adri') || nome.includes('adriane') || nome === 'adriane') {
+  // 3. role=admin mas NÃO em SUPER_ADMIN_IDENTIFIERS → alerta, sem acesso automático
+  //    Exemplos: Diego (engenheiro_diegofranco@hotmail.com), lucaslllopes@gmail.com
+  if (role === 'admin') {
     return {
-      acao:   'PROJECT_MEMBER',
-      perfil: 'commercial_manager',
+      acao:         'ALERTA_SEM_ACAO',
+      perfil:       null,
       isSuperAdmin: false,
-      motivo: `nome/login contém "adri"/"adriane" → mapeado como Adriane (commercial_manager)`,
-      status: 'ATIVO',
+      motivo:       `⚠ role=admin mas login "${login}" NÃO está em SUPER_ADMIN_IDENTIFIERS. ` +
+                    `Nenhum ProjectMember criado automaticamente. ` +
+                    `Adicione ao SUPER_ADMIN_IDENTIFIERS se este usuário deve ser super admin, ` +
+                    `ou mantenha como alerta para revisão manual com Lucas.`,
     };
   }
 
-  // João → não conceder acesso sem confirmação explícita
-  if (login.includes('joao') || login.includes('joão') ||
-      nome.includes('joao')  || nome.includes('joão')) {
+  // 4. Adriane → commercial_manager
+  if (loginL.includes('adri') || nome.includes('adriane') || nome === 'adriane') {
     return {
-      acao:   'ALERTA_SEM_ACAO',
-      perfil: null,
+      acao:         'PROJECT_MEMBER',
+      perfil:       'commercial_manager',
       isSuperAdmin: false,
-      motivo: `⚠ Possível usuário João identificado. Política: sem acesso global automático. ` +
-               `Nenhum ProjectMember será criado sem confirmação explícita de Lucas.`,
+      motivo:       `nome/login contém "adri"/"adriane" → Adriane (commercial_manager)`,
+      status:       'ATIVO',
     };
   }
 
-  // Usuários com nome claramente de teste → alertar
-  if (nome.includes('teste') || nome.includes('test') || login.includes('teste') || login.includes('test')) {
+  // 5. João → sem acesso automático (confirmar manualmente)
+  if (loginL.includes('joao') || loginL.includes('joão') ||
+      nome.includes('joao')   || nome.includes('joão')) {
     return {
-      acao:   'ALERTA_SEM_ACAO',
-      perfil: null,
+      acao:         'ALERTA_SEM_ACAO',
+      perfil:       null,
       isSuperAdmin: false,
-      motivo: `⚠ Nome/login contém "teste" — usuário de desenvolvimento. ` +
-               `Nenhum ProjectMember criado. Confirme com Lucas se deve ter acesso.`,
+      motivo:       `⚠ Possível usuário João identificado. ` +
+                    `Sem acesso automático — confirmar com Lucas se deve receber ProjectMember.`,
     };
   }
 
-  // Corretores ativos → perfil corretor no projeto
+  // 6. Usuários com nome/login claramente de teste → sem acesso
+  if (nome.includes('teste') || nome.includes('test') ||
+      loginL.includes('teste') || loginL.includes('test')) {
+    return {
+      acao:         'ALERTA_SEM_ACAO',
+      perfil:       null,
+      isSuperAdmin: false,
+      motivo:       `⚠ Nome/login contém "teste"/"test" — usuário de desenvolvimento. Sem acesso.`,
+    };
+  }
+
+  // 7. Corretores ativos → perfil corretor no projeto
   if (role === 'corretor') {
     return {
-      acao:   'PROJECT_MEMBER',
-      perfil: 'corretor',
+      acao:         'PROJECT_MEMBER',
+      perfil:       'corretor',
       isSuperAdmin: false,
-      motivo: `role=corretor, status=ATIVO → acesso como corretor no projeto`,
-      status: 'ATIVO',
+      motivo:       `role=corretor, status=${user.status} → corretor no projeto`,
+      status:       'ATIVO',
     };
   }
 
-  // Qualquer outro caso → alertar
+  // 8. Qualquer outro caso → alerta para revisão
   return {
-    acao:   'ALERTA_SEM_ACAO',
-    perfil: null,
+    acao:         'ALERTA_SEM_ACAO',
+    perfil:       null,
     isSuperAdmin: false,
-    motivo: `⚠ Perfil não reconhecido automaticamente (role=${user.role}). ` +
-             `Confirme manualmente com Lucas.`,
+    motivo:       `⚠ Perfil não reconhecido (role="${user.role}", login="${login}"). ` +
+                  `Confirme manualmente com Lucas.`,
   };
 }
 
@@ -506,18 +548,50 @@ async function main() {
   console.log(`  Project:            "${PROJECT_CONFIG.nome}"`);
   console.log(`  Módulos ativos:     ${MODULES.filter(m => m.ativo).map(m => m.tipo).join(', ')}`);
   console.log(`  Módulos inativos:   ${MODULES.filter(m => !m.ativo).map(m => m.tipo).join(', ')}`);
-  console.log(`  ProjectMembers:     ${membrosParaCriar.length} usuário(s) com acesso operacional`);
+
+  // Super Admins explícitos (isSuperAdmin=true)
+  const superAdmins = membrosParaCriar.filter(({ cls }) => cls.isSuperAdmin);
+  console.log(`\n  isSuperAdmin=true   (${superAdmins.length} usuário(s)):`);
+  if (superAdmins.length > 0) {
+    superAdmins.forEach(({ user }) => {
+      console.log(`    ✅ ${user.login}`);
+    });
+  } else {
+    console.log(`    (nenhum)`);
+  }
+
+  // ProjectMembers operacionais
+  console.log(`\n  ProjectMembers      (${membrosParaCriar.length} usuário(s) com acesso operacional):`);
   membrosParaCriar.forEach(({ user, cls }) => {
-    const superTag = cls.isSuperAdmin ? ' [isSuperAdmin=true]' : '';
-    console.log(`    • ${user.login.padEnd(35)} → ${cls.perfil}${superTag}`);
+    const superTag = cls.isSuperAdmin ? ' + isSuperAdmin=true' : '';
+    console.log(`    ✅ ${user.login.padEnd(40)} → perfil: ${cls.perfil}${superTag}`);
   });
-  console.log(`  Sem acesso (alerta):`);
+
+  // ProjectParticipants (sem acesso operacional)
+  console.log(`\n  ProjectParticipants (${PARTICIPANTS.length} — sem acesso operacional):`);
+  PARTICIPANTS.forEach(p => {
+    console.log(`    📋 ${p.nome.padEnd(15)} → ${p.tipoParticipacao} (sem userId, sem login)`);
+  });
+
+  // Ignorados (INATIVO/RECUSADO)
+  const ignorados = usuarios.filter(u => {
+    const cls = classificarUsuario(u);
+    return cls.acao === 'IGNORAR';
+  });
+  console.log(`\n  Ignorados           (${ignorados.length} — status INATIVO/RECUSADO):`);
+  ignorados.forEach(u => {
+    console.log(`    ⏭  ${u.login.padEnd(40)} → status: ${u.status}`);
+  });
+
+  // Sem acesso automático (alertas)
+  console.log(`\n  Sem acesso (alerta) (${alertas.length} — revisão manual necessária):`);
   alertas.forEach(({ user, cls }) => {
-    console.log(`    ⚠ ${user.login.padEnd(35)} → ${cls.acao}`);
+    console.log(`    ⚠  ${user.login.padEnd(40)} → role: ${user.role}`);
+    console.log(`       ${cls.motivo}`);
   });
-  console.log(`  ProjectParticipants: ${PARTICIPANTS.length} (Diego, Claudinei — sem acesso operacional)`);
-  console.log(`  Lotes a vincular:    ${lotesSemVinculo} de ${totalLotes}`);
-  console.log(`  Propostas a vincular:${propostasSemVinculo} de ${totalPropostas}`);
+
+  console.log(`\n  Lotes a vincular:     ${lotesSemVinculo} de ${totalLotes}`);
+  console.log(`  Propostas a vincular: ${propostasSemVinculo} de ${totalPropostas}`);
 
   console.log();
   if (DRY_RUN) {
@@ -541,7 +615,10 @@ async function main() {
 
     console.log(`  ⚠ Usuários sem acesso automático (revisar com Lucas):`);
     alertas.forEach(({ user, cls }) => {
-      console.log(`    • ${user.login} — ${cls.motivo}`);
+      console.log(`    • ${user.login}`);
+      console.log(`      role: ${user.role} | status: ${user.status}`);
+      console.log(`      motivo: ${cls.motivo}`);
+      console.log();
     });
 
     console.log();
