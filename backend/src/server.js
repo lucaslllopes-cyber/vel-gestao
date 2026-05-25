@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
 import 'dotenv/config';
 import * as XLSX from 'xlsx';
 import multer from 'multer';
-import { 
+import {
   notifyNewAccessRequest, notifyNewReservation, notifyNewProposal,
   notifyBrokerAccessApproved, notifyBrokerAccessRejected,
   notifyBrokerReservation, notifyBrokerProposal,
@@ -16,15 +16,15 @@ import {
 
 const app = express();
 const prisma = new PrismaClient();
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 } // Limite de 5MB para evitar DoS
 });
 
 // Configuração de CORS Restrita
 const corsOptions = {
-  origin: process.env.NODE_ENV === "production" 
-    ? ["https://app.velgestao.com", "https://velgestao.com", "https://www.velgestao.com"] 
+  origin: process.env.NODE_ENV === "production"
+    ? ["https://app.velgestao.com", "https://velgestao.com", "https://www.velgestao.com"]
     : "*",
   methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -41,10 +41,11 @@ if (!JWT_SECRET && process.env.NODE_ENV === "production") {
 const FINAL_JWT_SECRET = JWT_SECRET || "terravista_dev_secret_only";
 
 // ── MIDDLEWARE AUTH ──
+
 const requireAuth = (req, res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader) return res.status(401).json({ error: "Token não fornecido" });
-  
+
   const token = authHeader.split(" ")[1];
   try {
     const payload = jwt.verify(token, FINAL_JWT_SECRET);
@@ -71,13 +72,151 @@ const optionalAuth = (req, res, next) => {
   next();
 };
 
+// ─────────────────────────────────────────────────────────────
+// FASE 1 — HELPERS E MIDDLEWARES MULTIOPERAÇÃO
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * isAdmin(req) — verifica se o usuário tem papel de administrador.
+ * Compatível com tokens antigos (sem isSuperAdmin) e novos (com isSuperAdmin).
+ * Substitui os checks inline `req.user.role !== "admin"` com suporte a isSuperAdmin.
+ */
+const isAdmin = (req) => {
+  if (req.user?.isSuperAdmin === true) return true;
+  return (req.user?.role || '').toLowerCase() === 'admin';
+};
+
+/**
+ * resolveProject — identifica o Project ativo para a request.
+ *
+ * Ordem de prioridade:
+ *   1. query param `?projectId=...`
+ *   2. body `{ projectId: "..." }`
+ *   3. usuário tem exatamente 1 ProjectMember ATIVO → usa esse projeto
+ *   4. Fallback: Project "residencial-terra-vista" (único projeto nesta fase)
+ *
+ * Nunca bloqueia a rota: em caso de erro, req.project = null e continua.
+ * Deve ser chamado APÓS requireAuth ou optionalAuth (precisa de req.user).
+ */
+const resolveProject = async (req, res, next) => {
+  req.project = null;
+
+  // Sem usuário autenticado → sem projeto resolvido
+  if (!req.user) return next();
+
+  try {
+    // 1. projectId explícito em query param ou body
+    const explicitId = req.query.projectId || (req.body && req.body.projectId) || null;
+
+    if (explicitId) {
+      const project = await prisma.project.findUnique({
+        where: { id: explicitId },
+        select: { id: true, nome: true, slug: true, status: true, config: true, organizationId: true }
+      });
+      if (!project || project.status !== 'ATIVO') {
+        return res.status(400).json({ error: 'Projeto não encontrado ou inativo' });
+      }
+      // Admin/SuperAdmin tem acesso direto; demais precisam de ProjectMember
+      if (!isAdmin(req)) {
+        const member = await prisma.projectMember.findFirst({
+          where: { projectId: project.id, userId: req.user.id, status: 'ATIVO' }
+        });
+        if (!member) {
+          return res.status(403).json({ error: 'Sem acesso a este projeto' });
+        }
+      }
+      req.project = project;
+      return next();
+    }
+
+    // 2. Usuário tem exatamente 1 ProjectMember ativo → usa esse projeto
+    const members = await prisma.projectMember.findMany({
+      where: { userId: req.user.id, status: 'ATIVO' },
+      include: {
+        project: {
+          select: { id: true, nome: true, slug: true, status: true, config: true, organizationId: true }
+        }
+      }
+    });
+    const ativos = members.filter(m => m.project?.status === 'ATIVO');
+    if (ativos.length === 1) {
+      req.project = ativos[0].project;
+      return next();
+    }
+
+    // 3. Fallback: Terra Vista (único projeto ativo nesta fase)
+    const terraVista = await prisma.project.findFirst({
+      where: { slug: 'residencial-terra-vista', status: 'ATIVO' },
+      select: { id: true, nome: true, slug: true, status: true, config: true, organizationId: true }
+    });
+    req.project = terraVista || null;
+    return next();
+
+  } catch (err) {
+    console.error('[resolveProject] Erro (não-bloqueante):', err.message);
+    req.project = null;
+    return next();
+  }
+};
+
+/**
+ * checkPermission(...perfisPermitidos) — factory de middleware para permissões baseadas em ProjectMember.
+ *
+ * Ordem de verificação:
+ *   1. User.isSuperAdmin → acesso irrestrito
+ *   2. ProjectMember.perfil (se req.project estiver resolvido)
+ *   3. Fallback: role global antigo (compatibilidade retroativa)
+ *
+ * Perfis válidos: project_admin | commercial_manager | corretor | financeiro | viewer
+ *
+ * ATENÇÃO: Não utilizado para substituir checks existentes neste commit.
+ * Mantido como utilitário para rotas novas e commits futuros.
+ */
+const ROLE_TO_PROJECT_PERFIS = {
+  'admin':   ['project_admin', 'commercial_manager', 'corretor', 'financeiro', 'viewer'],
+  'corretor': ['corretor', 'viewer'],
+};
+
+const checkPermission = (...perfisPermitidos) => async (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Não autenticado' });
+
+  // 1. Super Admin global → acesso irrestrito
+  if (req.user.isSuperAdmin === true) return next();
+
+  // 2. Verificação via ProjectMember se há projeto resolvido
+  if (req.project) {
+    try {
+      const member = await prisma.projectMember.findFirst({
+        where: { projectId: req.project.id, userId: req.user.id, status: 'ATIVO' }
+      });
+      if (member) {
+        if (perfisPermitidos.includes(member.perfil)) return next();
+        return res.status(403).json({
+          error: `Perfil "${member.perfil}" não tem permissão para esta operação`
+        });
+      }
+    } catch (err) {
+      console.error('[checkPermission] Erro ao buscar ProjectMember:', err.message);
+      // Fallback silencioso para role global
+    }
+  }
+
+  // 3. Fallback: role global (compatibilidade retroativa com tokens anteriores à Fase 1)
+  const roleNorm = (req.user.role || '').toLowerCase();
+  const perfisDoRole = ROLE_TO_PROJECT_PERFIS[roleNorm] || [];
+  if (perfisPermitidos.some(p => perfisDoRole.includes(p))) return next();
+
+  return res.status(403).json({ error: 'Acesso negado' });
+};
+
 // ── ROTAS BASILARES ──
 
 // POST /auth/login
+// Fase 1: inclui isSuperAdmin no JWT e na resposta
 app.post("/auth/login", async (req, res) => {
   const { login, senha } = req.body;
   if (!login || !senha) return res.status(400).json({ error: "Preencha os campos" });
-  
+
   const user = await prisma.user.findUnique({ where: { login } });
   if (!user) return res.status(401).json({ error: "Credenciais inválidas" });
 
@@ -92,31 +231,44 @@ app.post("/auth/login", async (req, res) => {
   }
 
   const token = jwt.sign(
-    { id: user.id, login: user.login, role: user.role.toLowerCase(), nome: user.nome }, 
-    FINAL_JWT_SECRET, 
+    {
+      id: user.id,
+      login: user.login,
+      role: user.role.toLowerCase(),
+      nome: user.nome,
+      isSuperAdmin: user.isSuperAdmin || false  // Fase 1: incluso no JWT
+    },
+    FINAL_JWT_SECRET,
     { expiresIn: "30d" }
   );
-  
+
   res.json({
     token,
-    user: { id: user.id, login: user.login, role: user.role.toLowerCase(), nome: user.nome }
+    user: {
+      id: user.id,
+      login: user.login,
+      role: user.role.toLowerCase(),
+      nome: user.nome,
+      isSuperAdmin: user.isSuperAdmin || false  // Fase 1: incluso na resposta
+    }
   });
 });
 
 // GET /auth/me — verifica se o token é válido e retorna dados do usuário
+// Fase 1: inclui isSuperAdmin na resposta
 app.get("/auth/me", requireAuth, async (req, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user.id },
-      select: { id: true, nome: true, login: true, role: true, status: true }
+      select: { id: true, nome: true, login: true, role: true, status: true, isSuperAdmin: true }
     });
-    
+
     if (!user || user.status !== "ATIVO") {
       return res.status(401).json({ error: "Usuário não encontrado ou inativo" });
     }
-    
-    res.json({ 
-      user: { ...user, role: user.role.toLowerCase() } 
+
+    res.json({
+      user: { ...user, role: user.role.toLowerCase() }
     });
   } catch (e) {
     res.status(500).json({ error: "Erro ao verificar sessão" });
@@ -131,7 +283,7 @@ app.post("/auth/solicitar-acesso", async (req, res) => {
 
     const loginNorm = login.trim().toLowerCase();
     const exists = await prisma.user.findUnique({ where: { login: loginNorm } });
-    
+
     if (exists) {
       if (exists.status === "ATIVO") return res.status(400).json({ error: "Este e-mail já possui acesso ativo." });
       if (exists.status === "PENDENTE") return res.status(400).json({ error: "Já existe uma solicitação em análise para este e-mail." });
@@ -161,10 +313,13 @@ app.post("/auth/solicitar-acesso", async (req, res) => {
 });
 
 // GET /lotes — Público, mas esconde dados sensíveis se deslogado
-app.get("/lotes", optionalAuth, async (req, res) => {
+// Fase 1: filtra por projectId quando projeto resolvido; fallback retorna todos os lotes
+app.get("/lotes", optionalAuth, resolveProject, async (req, res) => {
   try {
-    const lotes = await prisma.lote.findMany();
-    
+    // Se há projeto resolvido, filtra por ele; caso contrário retorna todos (comportamento anterior)
+    const where = req.project ? { projectId: req.project.id } : {};
+    const lotes = await prisma.lote.findMany({ where });
+
     // Se não estiver logado, oculta nomes dos compradores (Privacidade/LGPD)
     if (!req.user) {
       return res.json(lotes.map(l => ({
@@ -181,10 +336,11 @@ app.get("/lotes", optionalAuth, async (req, res) => {
 });
 
 // POST /lotes/:id/reservar
-app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
+// Fase 1: registra projectId no AuditLog
+app.post("/lotes/:id/reservar", requireAuth, resolveProject, async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // 1. Busca Lote e Checa o Status
     const lote = await prisma.lote.findUnique({ where: { id } });
     if (!lote) return res.status(404).json({ error: "Lote não encontrado" });
@@ -212,13 +368,14 @@ app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
     notifyNewReservation(lote, req.user, reservaVenceEm);
     notifyBrokerReservation(lote, req.user, reservaVenceEm);
 
-    // AuditLog
+    // AuditLog — Fase 1: inclui projectId quando disponível
     await prisma.auditLog.create({
       data: {
         loteId: lote.id,
         userId: req.user.id,
         evento: "RESERVA_CRIADA",
-        payloadNovo: JSON.stringify({ status: "Reservado", reservaOwnerId: req.user.id, reservaVenceEm })
+        payloadNovo: JSON.stringify({ status: "Reservado", reservaOwnerId: req.user.id, reservaVenceEm }),
+        projectId: req.project?.id || null
       }
     });
 
@@ -230,10 +387,11 @@ app.post("/lotes/:id/reservar", requireAuth, async (req, res) => {
 });
 
 // POST /lotes/:id/liberar  (admin ou dono da reserva)
-app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
+// Fase 1: usa isAdmin() para suporte a isSuperAdmin; registra projectId no AuditLog
+app.post("/lotes/:id/liberar", requireAuth, resolveProject, async (req, res) => {
   try {
     const { id } = req.params;
-    const lote = await prisma.lote.findUnique({ 
+    const lote = await prisma.lote.findUnique({
       where: { id },
       include: { reservaOwner: true }
     });
@@ -242,7 +400,8 @@ app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
       return res.status(409).json({ error: "Lote não está Reservado" });
     }
 
-    if (req.user.role !== "admin" && lote.reservaOwnerId !== req.user.id) {
+    // Admin (incluindo SuperAdmin) pode liberar qualquer reserva; corretor só a sua
+    if (!isAdmin(req) && lote.reservaOwnerId !== req.user.id) {
       return res.status(403).json({ error: "Você só pode liberar suas próprias reservas" });
     }
 
@@ -255,14 +414,15 @@ app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
       notifyBrokerReservationReleased(lote, lote.reservaOwner);
     }
 
-    // AuditLog
+    // AuditLog — Fase 1: inclui projectId
     await prisma.auditLog.create({
       data: {
         loteId: id,
         userId: req.user.id,
         evento: "RESERVA_LIBERADA",
         payloadAnterior: JSON.stringify({ status: lote.status, reservaOwnerId: lote.reservaOwnerId }),
-        payloadNovo: JSON.stringify({ status: "Disponível", reservaOwnerId: null })
+        payloadNovo: JSON.stringify({ status: "Disponível", reservaOwnerId: null }),
+        projectId: req.project?.id || null
       }
     });
 
@@ -274,8 +434,9 @@ app.post("/lotes/:id/liberar", requireAuth, async (req, res) => {
 });
 
 // POST /lotes/:id/estornar  (admin only)
-app.post("/lotes/:id/estornar", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") {
+// Fase 1: usa isAdmin(); registra projectId no AuditLog
+app.post("/lotes/:id/estornar", requireAuth, resolveProject, async (req, res) => {
+  if (!isAdmin(req)) {
     return res.status(403).json({ error: "Apenas administradores podem estornar vendas" });
   }
   try {
@@ -320,7 +481,7 @@ app.post("/lotes/:id/estornar", requireAuth, async (req, res) => {
           reservaVenceEm: null,
         },
       }),
-      // 3. Registra evento no AuditLog
+      // 3. Registra evento no AuditLog — Fase 1: inclui projectId
       prisma.auditLog.create({
         data: {
           loteId: id,
@@ -328,6 +489,7 @@ app.post("/lotes/:id/estornar", requireAuth, async (req, res) => {
           evento: "ESTORNO",
           payloadAnterior: snapshotAnterior,
           payloadNovo: snapshotNovo,
+          projectId: req.project?.id || null
         },
       }),
     ]);
@@ -343,9 +505,10 @@ app.post("/lotes/:id/estornar", requireAuth, async (req, res) => {
 });
 
 // PATCH /lotes/:id — Edição Manual (Admin Only)
-app.patch("/lotes/:id", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
-  
+// Fase 1: usa isAdmin(); registra projectId no AuditLog
+app.patch("/lotes/:id", requireAuth, resolveProject, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Acesso negado" });
+
   try {
     const { id } = req.params;
     const { status, comprador, valor, situacaoLegal } = req.body;
@@ -390,14 +553,15 @@ app.patch("/lotes/:id", requireAuth, async (req, res) => {
       situacaoLegal: loteAtualizado.situacaoLegal
     });
 
-    // AuditLog
+    // AuditLog — Fase 1: inclui projectId
     await prisma.auditLog.create({
       data: {
         loteId: id,
         userId: req.user.id,
         evento: "EDICAO_MANUAL_LOTE",
         payloadAnterior,
-        payloadNovo
+        payloadNovo,
+        projectId: req.project?.id || null
       }
     });
 
@@ -408,13 +572,14 @@ app.patch("/lotes/:id", requireAuth, async (req, res) => {
   }
 });
 
-// ── GESTÃO DE PROPOSTAS (Admin) ──
+// ── GESTÃO DE PROPOSTAS ──
 
 // POST /propostas/:id/aprovar
-app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
+// Fase 1: usa isAdmin(); registra projectId no AuditLog
+app.post("/propostas/:id/aprovar", requireAuth, resolveProject, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Apenas admin" });
   try {
-    const proposta = await prisma.proposta.findUnique({ 
+    const proposta = await prisma.proposta.findUnique({
       where: { id: req.params.id },
       include: { corretor: true, lote: true }
     });
@@ -441,14 +606,15 @@ app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
 
     notifyBrokerProposalApproved(propostaAtualizada, proposta.corretor, proposta.lote);
 
-    // AuditLog
+    // AuditLog — Fase 1: inclui projectId
     await prisma.auditLog.create({
       data: {
         loteId: proposta.loteId,
         userId: req.user.id,
         evento: "PROPOSTA_APROVADA",
         payloadAnterior: JSON.stringify({ status: proposta.lote.status, comprador: proposta.lote.comprador }),
-        payloadNovo: JSON.stringify({ status: "Vendido", comprador: proposta.nomeCliente })
+        payloadNovo: JSON.stringify({ status: "Vendido", comprador: proposta.nomeCliente }),
+        projectId: req.project?.id || proposta.projectId || null
       }
     });
 
@@ -460,10 +626,11 @@ app.post("/propostas/:id/aprovar", requireAuth, async (req, res) => {
 });
 
 // POST /propostas/:id/recusar
-app.post("/propostas/:id/recusar", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
+// Fase 1: usa isAdmin(); registra projectId no AuditLog
+app.post("/propostas/:id/recusar", requireAuth, resolveProject, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Apenas admin" });
   try {
-    const proposta = await prisma.proposta.findUnique({ 
+    const proposta = await prisma.proposta.findUnique({
       where: { id: req.params.id },
       include: { corretor: true, lote: true }
     });
@@ -489,14 +656,15 @@ app.post("/propostas/:id/recusar", requireAuth, async (req, res) => {
 
     notifyBrokerProposalRejected(propostaAtualizada, proposta.corretor, proposta.lote);
 
-    // AuditLog
+    // AuditLog — Fase 1: inclui projectId
     await prisma.auditLog.create({
       data: {
         loteId: proposta.loteId,
         userId: req.user.id,
         evento: "PROPOSTA_RECUSADA",
         payloadAnterior: JSON.stringify({ status: proposta.lote.status }),
-        payloadNovo: JSON.stringify({ status: "Disponível" })
+        payloadNovo: JSON.stringify({ status: "Disponível" }),
+        projectId: req.project?.id || proposta.projectId || null
       }
     });
 
@@ -508,8 +676,9 @@ app.post("/propostas/:id/recusar", requireAuth, async (req, res) => {
 });
 
 // POST /propostas/:id/ajuste  (só em Pendente)
-app.post("/propostas/:id/ajuste", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Apenas admin" });
+// Fase 1: usa isAdmin()
+app.post("/propostas/:id/ajuste", requireAuth, resolveProject, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Apenas admin" });
   try {
     const proposta = await prisma.proposta.findUnique({ where: { id: req.params.id } });
     if (!proposta) return res.status(404).json({ error: "Proposta não encontrada" });
@@ -531,7 +700,8 @@ app.post("/propostas/:id/ajuste", requireAuth, async (req, res) => {
 });
 
 // POST /propostas
-app.post("/propostas", requireAuth, async (req, res) => {
+// Fase 1: inclui projectId na proposta criada
+app.post("/propostas", requireAuth, resolveProject, async (req, res) => {
   try {
     const { loteId, nomeCliente, telefoneCliente, emailCliente, payloadFinanceiro } = req.body;
 
@@ -556,7 +726,7 @@ app.post("/propostas", requireAuth, async (req, res) => {
       ? payloadFinanceiro
       : JSON.stringify(payloadFinanceiro);
 
-    // 3. Cria a proposta
+    // 3. Cria a proposta — Fase 1: inclui projectId quando disponível
     const proposta = await prisma.proposta.create({
       data: {
         loteId,
@@ -566,6 +736,7 @@ app.post("/propostas", requireAuth, async (req, res) => {
         emailCliente: emailCliente || null,
         payloadFinanceiro: payloadStr,
         status: "Pendente",
+        projectId: req.project?.id || lote.projectId || null
       }
     });
 
@@ -582,10 +753,16 @@ app.post("/propostas", requireAuth, async (req, res) => {
   }
 });
 
-// GET /propostas  (admin: todas | corretor: só as suas)
-app.get("/propostas", requireAuth, async (req, res) => {
+// GET /propostas  (admin: todas do projeto | corretor: só as suas no projeto)
+// Fase 1: filtra por projectId quando projeto resolvido
+app.get("/propostas", requireAuth, resolveProject, async (req, res) => {
   try {
-    const where = req.user.role === "admin" ? {} : { corretorId: req.user.id };
+    const where = {
+      // Admin vê todas; corretor vê só as suas
+      ...(isAdmin(req) ? {} : { corretorId: req.user.id }),
+      // Fase 1: filtra por projeto quando resolvido
+      ...(req.project ? { projectId: req.project.id } : {}),
+    };
     const propostas = await prisma.proposta.findMany({
       where,
       orderBy: { criadaEm: "desc" },
@@ -602,8 +779,9 @@ app.get("/propostas", requireAuth, async (req, res) => {
 // ── GESTÃO DE USUÁRIOS (Admin) ──
 
 // GET /users
+// Fase 1: usa isAdmin()
 app.get("/users", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  if (!isAdmin(req)) return res.status(403).json({ error: "Acesso negado" });
   try {
     const users = await prisma.user.findMany({
       select: { id: true, nome: true, login: true, role: true, status: true, telefone: true, imobiliaria: true, createdAt: true },
@@ -616,14 +794,15 @@ app.get("/users", requireAuth, async (req, res) => {
 });
 
 // POST /users
+// Fase 1: usa isAdmin()
 app.post("/users", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  if (!isAdmin(req)) return res.status(403).json({ error: "Acesso negado" });
   try {
     const { nome, login, senha, role, status, telefone, imobiliaria } = req.body;
     if (!nome || !login || !senha || !role) {
       return res.status(400).json({ error: "Preencha todos os campos obrigatórios" });
     }
-    
+
     const exists = await prisma.user.findUnique({ where: { login } });
     if (exists) return res.status(400).json({ error: "Este login já está em uso" });
 
@@ -631,10 +810,10 @@ app.post("/users", requireAuth, async (req, res) => {
     const userRole = role.toLowerCase(); // Normaliza para admin ou corretor
 
     const newUser = await prisma.user.create({
-      data: { 
-        nome, 
-        login, 
-        senhaHash, 
+      data: {
+        nome,
+        login,
+        senhaHash,
         role: userRole,
         status: status || "ATIVO",
         telefone,
@@ -642,10 +821,10 @@ app.post("/users", requireAuth, async (req, res) => {
       }
     });
 
-    res.status(201).json({ 
-      id: newUser.id, 
-      nome: newUser.nome, 
-      login: newUser.login, 
+    res.status(201).json({
+      id: newUser.id,
+      nome: newUser.nome,
+      login: newUser.login,
       role: newUser.role,
       status: newUser.status
     });
@@ -656,8 +835,9 @@ app.post("/users", requireAuth, async (req, res) => {
 });
 
 // PATCH /users/:id/status
+// Fase 1: usa isAdmin()
 app.patch("/users/:id/status", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
+  if (!isAdmin(req)) return res.status(403).json({ error: "Acesso negado" });
   try {
     const { status } = req.body;
     if (!status || !["ATIVO", "PENDENTE", "INATIVO", "RECUSADO"].includes(status)) {
@@ -680,21 +860,23 @@ app.patch("/users/:id/status", requireAuth, async (req, res) => {
   }
 });
 
-// ── IMPORTAÇÃO DE PLANILHA (Admin Only — via Role Check) ──
+// ── IMPORTAÇÃO DE PLANILHA (Admin Only) ──
+
 // POST /lotes/import-preview
-app.post("/lotes/import-preview", requireAuth, upload.single('file'), async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
-  
+// Fase 1: usa isAdmin(); registra projectId no AuditLog de confirmação
+app.post("/lotes/import-preview", requireAuth, resolveProject, upload.single('file'), async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Acesso negado" });
+
   try {
     if (!req.file) return res.status(400).json({ error: "Arquivo não fornecido" });
 
     const buffer = req.file.buffer;
     const workbook = XLSX.read(buffer, { type: 'buffer' });
-    
+
     // Procura aba específica ou usa a primeira
     let sheetName = workbook.SheetNames.find(n => n.toUpperCase() === "IMPORTAR_SITE");
     if (!sheetName) sheetName = workbook.SheetNames[0];
-    
+
     const sheet = workbook.Sheets[sheetName];
     const data = XLSX.utils.sheet_to_json(sheet);
 
@@ -704,7 +886,7 @@ app.post("/lotes/import-preview", requireAuth, upload.single('file'), async (req
     const mapBanco = new Map(lotesNoBanco.map(l => [`${l.q}-${l.n}`.toUpperCase(), l]));
 
     const diffs = [];
-    
+
     for (const row of data) {
       // Normalização de chaves para evitar problemas com espaços ou case
       const normRow = {};
@@ -715,7 +897,7 @@ app.post("/lotes/import-preview", requireAuth, upload.single('file'), async (req
 
       const q = String(normRow.QUADRA || "").trim().toUpperCase();
       const n = String(normRow.LOTE || "").trim().toUpperCase();
-      
+
       if (!q || !n) continue;
 
       const id = `${q}-${n}`;
@@ -773,9 +955,10 @@ app.post("/lotes/import-preview", requireAuth, upload.single('file'), async (req
 });
 
 // POST /lotes/import-confirm
-app.post("/lotes/import-confirm", requireAuth, async (req, res) => {
-  if (req.user.role !== "admin") return res.status(403).json({ error: "Acesso negado" });
-  
+// Fase 1: usa isAdmin(); registra projectId no AuditLog
+app.post("/lotes/import-confirm", requireAuth, resolveProject, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: "Acesso negado" });
+
   const { updates } = req.body; // Array de { id, valoresNovos }
   if (!updates || !Array.isArray(updates)) return res.status(400).json({ error: "Dados invlidos" });
 
@@ -808,19 +991,21 @@ app.post("/lotes/import-confirm", requireAuth, async (req, res) => {
     );
 
     // Registro no AuditLog resiliente fora da transação
+    // Fase 1: inclui projectId quando disponível
     try {
       if (validUpdates.length > 0) {
         await prisma.auditLog.create({
           data: {
-            loteId: validUpdates[0].id, 
+            loteId: validUpdates[0].id,
             userId: req.user.id,
             evento: "IMPORTACAO_PLANILHA",
-            payloadNovo: JSON.stringify({ 
+            payloadNovo: JSON.stringify({
               total: validUpdates.length,
               pulas: updates.length - validUpdates.length,
               ids: validUpdates.slice(0, 10).map(u => u.id),
-              info: "Importação em massa via planilha (lotes vendidos preservados)" 
-            })
+              info: "Importação em massa via planilha (lotes vendidos preservados)"
+            }),
+            projectId: req.project?.id || null
           }
         });
       }
@@ -834,6 +1019,39 @@ app.post("/lotes/import-confirm", requireAuth, async (req, res) => {
     console.error("Erro na confirmação:", error);
     res.status(500).json({ error: "Erro ao aplicar atualizações" });
   }
+});
+
+// ── ROTAS DE PROJETO (Fase 1 — leitura de contexto) ──
+
+// GET /project/current — retorna o projeto resolvido para o usuário atual
+// Útil para o frontend saber qual projeto está ativo sem mudar telas
+app.get("/project/current", requireAuth, resolveProject, async (req, res) => {
+  if (!req.project) {
+    return res.status(404).json({ error: "Nenhum projeto ativo encontrado para este usuário" });
+  }
+
+  // Inclui perfil do usuário no projeto (se existir)
+  let perfil = null;
+  if (!req.user.isSuperAdmin) {
+    const member = await prisma.projectMember.findFirst({
+      where: { projectId: req.project.id, userId: req.user.id, status: 'ATIVO' },
+      select: { perfil: true, status: true }
+    });
+    perfil = member?.perfil || null;
+  } else {
+    perfil = 'project_admin'; // Super Admin tem perfil admin em qualquer projeto
+  }
+
+  res.json({
+    project: {
+      id: req.project.id,
+      nome: req.project.nome,
+      slug: req.project.slug,
+      config: req.project.config ? JSON.parse(req.project.config) : null,
+    },
+    perfil,
+    isSuperAdmin: req.user.isSuperAdmin || false
+  });
 });
 
 const PORT = process.env.PORT || 3001;

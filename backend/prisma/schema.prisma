@@ -8,8 +8,12 @@ generator client {
   output   = "./generated/client"
 }
 
+// ─────────────────────────────────────────────────────────────
+// MODELOS EXISTENTES (preservados; campos novos todos opcionais)
+// ─────────────────────────────────────────────────────────────
+
 model User {
-  id         String   @id @default(uuid())
+  id           String   @id @default(uuid())
   nome         String
   login        String   @unique
   senhaHash    String
@@ -17,61 +21,201 @@ model User {
   status       String   @default("ATIVO") // ATIVO | PENDENTE | INATIVO | RECUSADO
   telefone     String?
   imobiliaria  String?
+  isSuperAdmin Boolean  @default(false) // Fase 1: somente Lucas = true
   createdAt    DateTime @default(now())
 
-  lotes      Lote[]     @relation("UserReservas")
-  propostas  Proposta[] @relation("UserPropostas")
-  auditLogs  AuditLog[] @relation("UserAuditLogs")
+  // Relações existentes (inalteradas)
+  lotes     Lote[]     @relation("UserReservas")
+  propostas Proposta[] @relation("UserPropostas")
+  auditLogs AuditLog[] @relation("UserAuditLogs")
+
+  // Relações novas — Fase 1
+  organizationMembers OrganizationMember[]
+  projectMembers      ProjectMember[]
+  projectParticipants ProjectParticipant[]
 }
 
 model Lote {
-  id               String    @id
-  n                String
-  q                String
-  area             Float
-  valor            Float
-  valorAvista      Float?
-  status           String
-  situacaoLegal    String?
-  reservaVenceEm   DateTime?
-  comprador        String?
+  id                String    @id
+  n                 String
+  q                 String
+  area              Float
+  valor             Float
+  valorAvista       Float?
+  status            String
+  situacaoLegal     String?
+  reservaVenceEm    DateTime?
+  comprador         String?
   compradorAnterior String? // Preservado após estorno
 
-  reservaOwnerId   String?
-  reservaOwner     User?      @relation("UserReservas", fields: [reservaOwnerId], references: [id])
+  reservaOwnerId String?
+  reservaOwner   User?   @relation("UserReservas", fields: [reservaOwnerId], references: [id])
 
-  propostas        Proposta[] @relation("LotePropostas")
-  auditLogs        AuditLog[] @relation("LoteAuditLogs")
+  // Vínculo com projeto — Fase 1 (opcional para compatibilidade com dados atuais)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  propostas Proposta[] @relation("LotePropostas")
+  auditLogs AuditLog[] @relation("LoteAuditLogs")
 }
 
 model Proposta {
-  id               String   @id @default(uuid())
-  loteId           String
-  lote             Lote     @relation("LotePropostas", fields: [loteId], references: [id])
+  id     String @id @default(uuid())
+  loteId String
+  lote   Lote   @relation("LotePropostas", fields: [loteId], references: [id])
 
-  corretorId       String
-  corretor         User     @relation("UserPropostas", fields: [corretorId], references: [id])
+  corretorId String
+  corretor   User   @relation("UserPropostas", fields: [corretorId], references: [id])
 
-  nomeCliente      String
-  telefoneCliente  String?
-  emailCliente     String?
+  nomeCliente     String
+  telefoneCliente String?
+  emailCliente    String?
 
-  payloadFinanceiro String   // JSON serializado (tabela, parcelas, entrada, etc.)
+  payloadFinanceiro String // JSON serializado (tabela, parcelas, entrada, etc.)
 
-  status           String   @default("Pendente") // Pendente | Aprovada | Recusada | Distratada
-  criadaEm         DateTime @default(now())
+  status   String   @default("Pendente") // Pendente | Aprovada | Recusada | Distratada | AjusteSolicitado
+  criadaEm DateTime @default(now())
+
+  // Vínculo com projeto — Fase 1 (opcional)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
 }
 
 model AuditLog {
-  id              String   @id @default(uuid())
-  loteId          String
-  lote            Lote     @relation("LoteAuditLogs", fields: [loteId], references: [id])
+  id     String @id @default(uuid())
+  loteId String
+  lote   Lote   @relation("LoteAuditLogs", fields: [loteId], references: [id])
 
-  userId          String?
-  user            User?    @relation("UserAuditLogs", fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation("UserAuditLogs", fields: [userId], references: [id])
 
-  evento          String   // RESERVA_CRIADA | RESERVA_LIBERADA | PROPOSTA_CRIADA | PROPOSTA_APROVADA | PROPOSTA_RECUSADA | AJUSTE_SOLICITADO | ESTORNO
-  payloadAnterior String?  // JSON snapshot do lote antes
-  payloadNovo     String?  // JSON snapshot do lote depois
+  evento          String // RESERVA_CRIADA | RESERVA_LIBERADA | PROPOSTA_CRIADA | PROPOSTA_APROVADA | PROPOSTA_RECUSADA | AJUSTE_SOLICITADO | ESTORNO | EDICAO_MANUAL_LOTE
+  payloadAnterior String? // JSON snapshot do lote antes
+  payloadNovo     String? // JSON snapshot do lote depois
   criadoEm        DateTime @default(now())
+
+  // Vínculo com projeto — Fase 1 (opcional)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOVOS MODELOS — FASE 1: FUNDAÇÃO MULTIOPERAÇÃO MÍNIMA
+// ─────────────────────────────────────────────────────────────
+
+/// Entidade principal: empresa ou grupo proprietário de projetos.
+/// Primeira instância: "VEL Empreendimentos" (slug: vel-empreendimentos).
+model Organization {
+  id        String   @id @default(uuid())
+  nome      String
+  slug      String   @unique
+  descricao String?
+  status    String   @default("ATIVO") // ATIVO | INATIVO
+  createdAt DateTime @default(now())
+
+  members  OrganizationMember[]
+  projects Project[]
+}
+
+/// Vínculo entre usuário e organização, com papel organizacional.
+model OrganizationMember {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  role      String // org_admin | org_member
+  createdAt DateTime @default(now())
+
+  @@unique([organizationId, userId])
+}
+
+/// Empreendimento imobiliário (ex: Residencial Terra Vista).
+/// Contém configurações comerciais no campo config (JSON).
+model Project {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  nome   String
+  slug   String @unique
+  tipo   String @default("LOTEAMENTO") // LOTEAMENTO | CONDOMINIO | COMERCIAL
+  status String @default("ATIVO") // ATIVO | INATIVO | ARQUIVADO
+
+  cidade String?
+  estado String?
+
+  /// JSON com configurações comerciais do empreendimento.
+  /// Exemplo: {"entrada_min_pct":10,"taxa_am":0.8,"tabelas":["SACOC","PRICE"],
+  ///            "anuais_qtd":5,"anuais_val":2000,"reserva_horas":48}
+  config String?
+
+  createdAt DateTime @default(now())
+
+  members      ProjectMember[]
+  participants ProjectParticipant[]
+  modules      ProjectModule[]
+  lotes        Lote[]
+  propostas    Proposta[]
+  auditLogs    AuditLog[]
+}
+
+/// Vínculo operacional entre usuário e projeto.
+/// Apenas ProjectMembers têm acesso ao sistema para operar o projeto.
+/// Perfis: project_admin | commercial_manager | corretor | financeiro | viewer
+model ProjectMember {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  perfil           String // project_admin | commercial_manager | corretor | financeiro | viewer
+  modulosExtras    String? // JSON: módulos habilitados além do padrão do perfil
+  modulosRestritos String? // JSON: módulos bloqueados para este membro especificamente
+  status           String   @default("ATIVO") // ATIVO | PENDENTE | INATIVO | RECUSADO
+  createdAt        DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+/// Participante do projeto sem acesso operacional automático.
+/// Ex: sócios, parceiros, proprietários do terreno.
+/// Pode ser vinculado a um User para acesso futuro a relatórios (se Lucas liberar).
+model ProjectParticipant {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  nome                   String
+  tipoParticipacao       String // SOCIO | PARCEIRO | INVESTIDOR | PROPRIETARIO_TERRENO
+  percentualParticipacao Float?
+  percentualComissao     Float?
+  descricao              String?
+
+  // Vínculo opcional com conta de usuário
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+}
+
+/// Módulo funcional ativado ou desativado por projeto.
+/// Tipos: commercial | map | proposals | import_export |
+///        financial | documents | crm | reports | integrations | admin
+model ProjectModule {
+  id        String  @id @default(uuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  tipo   String // ver lista acima
+  ativo  Boolean @default(false)
+  config String? // JSON: configurações específicas do módulo
+
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, tipo])
 }
