@@ -2,7 +2,7 @@
 // CONFIG PAGE — configurações comerciais (admin only)
 // ─────────────────────────────────────────────────────────────────
 
-export function ConfigPage({ cfg, setCfg }) {
+export function ConfigPage({ cfg, setCfg, project }) {
   const campos = [
     { l: "Entrada mínima (%)",             k: "entrada_min_pct", min: 1,   max: 80,    step: 1,   note: "Piso obrigatório (8% = VEL + comissão)" },
     { l: "Taxa de juros (% a.m.)",          k: "taxa_am",         min: 0,   max: 3,     step: 0.1, note: "Aplicada no SACOC e Price >24x" },
@@ -16,6 +16,16 @@ export function ConfigPage({ cfg, setCfg }) {
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ color: "var(--navy-primary)", fontSize: 24, fontWeight: 800 }}>⚙️ Configurações do Sistema</h2>
         <p style={{ color: "var(--text-secondary)", fontSize: 14, marginTop: 4 }}>Ajuste os parâmetros comerciais globais do empreendimento.</p>
+        {project && (
+          <div style={{
+            marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6,
+            fontSize: 12, color: "#0369a1",
+            background: "#f0f9ff", border: "1px solid #bae6fd",
+            borderRadius: 6, padding: "4px 10px", fontWeight: 600,
+          }}>
+            📍 {project.nome}
+          </div>
+        )}
       </div>
 
       <div className="premium-card" style={{

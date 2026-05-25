@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { BASE_URL } from "./utils/api";
+import { fetchProjectConfig } from "./utils/projectConfig";
 
 import { LOTS_SEED, DEFAULT_CFG, QUADRAS, SC } from "./data/constants";
 import { LS, STORAGE_KEYS }                    from "./utils/storage";
@@ -114,6 +115,7 @@ export default function App() {
   const [props, setProps] = useState(() => LS.g(STORAGE_KEYS.PROPS,  []));
   const [notifs, setNots] = useState(() => LS.g(STORAGE_KEYS.NOTIFS, []));
   const [cfg, setCfg]     = useState(() => LS.g(STORAGE_KEYS.CFG,    DEFAULT_CFG));
+  const [project, setProject] = useState(null); // projeto atual carregado via /project/current
 
   // ── UI state ──
   const [tab, setTab]   = useState("espelho");
@@ -162,6 +164,23 @@ export default function App() {
   useEffect(() => { LS.s(STORAGE_KEYS.PROPS,  props);  }, [props]);
   useEffect(() => { LS.s(STORAGE_KEYS.NOTIFS, notifs); }, [notifs]);
   useEffect(() => { LS.s(STORAGE_KEYS.CFG,    cfg);    }, [cfg]);
+
+  // ── Carrega config do Project atual (GET /project/current) ──
+  // Dispara após login ou restauração de sessão bem-sucedida.
+  // Fallback total: se o endpoint falhar, usa localStorage → DEFAULT_CFG.
+  useEffect(() => {
+    if (!user?.token) return;
+    let cancelled = false;
+    const apply = async () => {
+      const lsConfig = LS.g(STORAGE_KEYS.CFG, DEFAULT_CFG);
+      const { config, project } = await fetchProjectConfig(user.token, lsConfig);
+      if (cancelled) return;
+      setCfg(config);
+      setProject(project);
+    };
+    apply();
+    return () => { cancelled = true; };
+  }, [user?.token]); // re-executa ao fazer login ou restaurar sessão
 
   // ── Timer de expiração de reservas ──
   useReservaTimer(setLots, setNots, setSel, fetchLotes);
@@ -597,10 +616,11 @@ export default function App() {
             ☰
           </button>
           
-          <button onClick={() => { 
-            setUser(null); 
-            setSel(null); 
-            setTab("espelho"); 
+          <button onClick={() => {
+            setUser(null);
+            setProject(null);
+            setSel(null);
+            setTab("espelho");
             localStorage.removeItem(STORAGE_KEYS.USER);
           }}
             className="btn-outline-gold"
@@ -742,7 +762,7 @@ export default function App() {
         )}
 
         {/* Config */}
-        {tab === "cfg" && isAdmin && <ConfigPage cfg={cfg} setCfg={setCfg} />}
+        {tab === "cfg" && isAdmin && <ConfigPage cfg={cfg} setCfg={setCfg} project={project} />}
 
         {/* Usuários */}
         {tab === "usuarios" && isAdmin && <UsuariosPage user={user} onUserUpdated={fetchPendingUsersCount} />}
