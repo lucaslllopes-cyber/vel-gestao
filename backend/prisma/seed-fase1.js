@@ -27,8 +27,8 @@ const MODO = DRY_RUN ? '🔍 DRY-RUN (preview — nada será gravado)' : '✅ AP
 // Para adicionar um super admin, acrescente o login EXATO aqui.
 // ─────────────────────────────────────────────────────────────
 const SUPER_ADMIN_IDENTIFIERS = new Set([
-  'admin',  // Conta principal da Gestão Terra Vista (Lucas)
-  // 'lucaslllopes@gmail.com',  // Descomente se a conta pessoal de Lucas deve ser super admin
+  'admin',                    // Conta principal da Gestão Terra Vista
+  'lucaslllopes@gmail.com',   // Conta pessoal de Lucas
 ]);
 
 // ─────────────────────────────────────────────────────────────
